@@ -28,4 +28,6 @@ target_compile_options(cpu_rasterizer
         -Wall
         -Wextra
         -Wpedantic
+        -O3
+        -march=native
 )

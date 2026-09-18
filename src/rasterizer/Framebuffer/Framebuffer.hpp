@@ -11,11 +11,11 @@ namespace cpu_rast {
  * @brief defines a pixel with x, y and color all stored as uint32_t
  */
 struct pixel_t {
-    uint32_t x;
-    uint32_t y;
+    size_t x;
+    size_t y;
     uint32_t color;
 
-    pixel_t(uint32_t X, uint32_t Y, uint32_t Color) : x(X), y(Y), color(Color) {}
+    pixel_t(size_t X, size_t Y, uint32_t Color) : x(X), y(Y), color(Color) {}
 };
 
 /**
@@ -49,23 +49,17 @@ public:
         } 
     }
 
-    pixel_t set_pixel(const size_t x_, const size_t y_, const uint32_t color_) {
-        uint32_t x = static_cast<uint32_t>(x_);
-        uint32_t y = static_cast<uint32_t>(y_);
-
-        pixel_t pixel{x, y, color_};
+    pixel_t set_pixel(const size_t x_, const size_t y_, const uint32_t color_) noexcept {
         pixels_[y_ * width + x_] = color_;
-
-        return pixel;
+        return {x_, y_, color_};
     }
 
-    pixel_t get_pixel(const size_t x_, const size_t y_) const {
-        uint32_t x = static_cast<uint32_t>(x_);
-        uint32_t y = static_cast<uint32_t>(y_);
+    uint32_t get_pixel_color(const size_t x_, const size_t y_) noexcept {
+        return pixels_[y_ * width + x_];
+    }
 
-        pixel_t pixel = {x, y, pixels_[x * width + x]};
-        
-        return pixel;
+    pixel_t get_pixel(const size_t x_, const size_t y_) const noexcept {
+        return {x_, y_, pixels_[y_ * width + x_]};
     }
 };
 
