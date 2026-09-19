@@ -1,7 +1,5 @@
 #include <iostream>
 #include "rasterizer/cpu_rasterizer.hpp"
-#include "rasterizer/colors.h"
-#include <chrono>
 
 using namespace cpu_rast;
 
