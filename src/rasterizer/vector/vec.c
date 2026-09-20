@@ -36,49 +36,7 @@ vec4f_t *vec4f_arr_to_aos(const vec4f_arr_t *restrict arr, vec4f_t *restrict out
 // ----------------------------------------------------------------------------------------------------------------------------
 // vec2
 
-vec2f_t vec2f_add(const vec2f_t a, const vec2f_t b) {
-    return (vec2f_t){a.x + b.x, a.y + b.y};
-}
-
-vec2f_t vec2f_add3(const vec2f_t a, const vec2f_t b, const vec2f_t c) {
-    return (vec2f_t){a.x + b.x + c.x, a.y + b.y + c.y};
-}
-
-vec2f_t vec2f_mul(const vec2f_t a, const vec2f_t b) {
-    return (vec2f_t){a.x * b.x, a.y * b.y};
-}
-
-vec2f_t vec2f_mul3(const vec2f_t a, const vec2f_t b, const vec2f_t c) {
-    return (vec2f_t){a.x * b.x * c.x, a.y * b.y * c.y};
-}
-
-vec2f_t vec2f_div(const vec2f_t a, const vec2f_t b) {
-    return (vec2f_t){a.x / b.x, a.y / b.y};
-}
-
-vec2f_t vec2f_div3(const vec2f_t a, const vec2f_t b, const vec2f_t c) {
-    return (vec2f_t){a.x / b.x / c.x, a.y / b.y / c.y};
-}
-
-vec2f_t vec2f_sub(const vec2f_t a, const vec2f_t b) {
-    return (vec2f_t){a.x - b.x, a.y - b.y};
-}
-
-vec2f_t vec2f_sub3(const vec2f_t a, const vec2f_t b, const vec2f_t c) {
-    return (vec2f_t){a.x - b.x - c.x, a.y - b.y - c.y};
-}
-
-float vec2f_dot(const vec2f_t a, const vec2f_t b) {
-    return a.x * b.x + a.y * b.y;
-}
-
-float vec2f_dot3(const vec2f_t a, const vec2f_t b, const vec2f_t c) {
-    return a.x * b.x * c.x + a.y * b.y * c.y;
-}
-
 vec2f_t vec2f_n_add(const vec2f_arr_t *restrict vec_array, size_t count) {
-    vec2f_t result = {0.0f, 0.0f};
-
     size_t i = 0;
     __m128 sumx = _mm_setzero_ps();
     __m128 sumy = _mm_setzero_ps();
@@ -88,8 +46,10 @@ vec2f_t vec2f_n_add(const vec2f_arr_t *restrict vec_array, size_t count) {
         sumy = _mm_add_ps(sumy, _mm_loadu_ps(&vec_array->y[i]));
     }
 
-    result.x = hsum4_ps(sumx);
-    result.y = hsum4_ps(sumy);
+    vec2f_t result = {
+        hsum4_ps(sumx),
+        hsum4_ps(sumy)
+    };
 
     for (; i < count; ++i) {
         result.x += vec_array->x[i];
@@ -286,49 +246,7 @@ vec2f_arr_t *vec2f_arr_scale(vec2f_arr_t *restrict out, const vec2f_arr_t *restr
 // ----------------------------------------------------------------------------------------------------------------------------
 // vec3
 
-vec3f_t vec3f_add(const vec3f_t a, const vec3f_t b) {
-    return (vec3f_t){a.x + b.x, a.y + b.y, a.z + b.z};
-}
-
-vec3f_t vec3f_add3(const vec3f_t a, const vec3f_t b, const vec3f_t c) {
-    return (vec3f_t){a.x + b.x + c.x, a.y + b.y + c.y, a.z + b.z + c.z};
-}
-
-vec3f_t vec3f_mul(const vec3f_t a, const vec3f_t b) {
-    return (vec3f_t){a.x * b.x, a.y * b.y, a.z * b.z};
-}
-
-vec3f_t vec3f_mul3(const vec3f_t a, const vec3f_t b, const vec3f_t c) {
-    return (vec3f_t){a.x * b.x * c.x, a.y * b.y * c.y, a.z * b.z * c.z};
-}
-
-vec3f_t vec3f_div(const vec3f_t a, const vec3f_t b) {
-    return (vec3f_t){a.x / b.x, a.y / b.y, a.z / b.z};
-}
-
-vec3f_t vec3f_div3(const vec3f_t a, const vec3f_t b, const vec3f_t c) {
-    return (vec3f_t){a.x / b.x / c.x, a.y / b.y / c.y, a.z / b.z / c.z};
-}
-
-vec3f_t vec3f_sub(const vec3f_t a, const vec3f_t b) {
-    return (vec3f_t){a.x - b.x, a.y - b.y, a.z - b.z};
-}
-
-vec3f_t vec3f_sub3(const vec3f_t a, const vec3f_t b, const vec3f_t c) {
-    return (vec3f_t){a.x - b.x - c.x, a.y - b.y - c.y, a.z - b.z - c.z};
-}
-
-float vec3f_dot(const vec3f_t a, const vec3f_t b) {
-    return a.x * b.x + a.y * b.y + a.z * b.z;
-}
-
-float vec3f_dot3(const vec3f_t a, const vec3f_t b, const vec3f_t c) {
-    return a.x * b.x * c.x + a.y * b.y * c.y + a.z * b.z * c.z;
-}
-
 vec3f_t vec3f_n_add(const vec3f_arr_t *restrict vec_array, size_t count) {
-    vec3f_t result = {0.0f, 0.0f};
-
     size_t i = 0;
     __m128 sumx = _mm_setzero_ps();
     __m128 sumy = _mm_setzero_ps();
@@ -340,9 +258,11 @@ vec3f_t vec3f_n_add(const vec3f_arr_t *restrict vec_array, size_t count) {
         sumz = _mm_add_ps(sumz, _mm_loadu_ps(&vec_array->z[i]));
     }
 
-    result.x = hsum4_ps(sumx);
-    result.y = hsum4_ps(sumy);
-    result.z = hsum4_ps(sumz);
+    vec3f_t result = {
+        hsum4_ps(sumx),
+        hsum4_ps(sumy),
+        hsum4_ps(sumz)
+    };
 
     for (; i < count; ++i) {
         result.x += vec_array->x[i];
@@ -388,9 +308,24 @@ vec3f_t vec3f_n_sub(const vec3f_arr_t *restrict vec_array, size_t count) {
 }
 
 vec3f_t vec3f_n_mul(const vec3f_arr_t *restrict vec_array, size_t count) {
-    vec3f_t result = {1.0f, 1.0f, 1.0f};
+    size_t i = 0;
+    __m128 prodx = _mm_set1_ps(1.0f);
+    __m128 prody = _mm_set1_ps(1.0f);
+    __m128 prodz = _mm_set1_ps(1.0f);
 
-    for (size_t i = 0; i < count; ++i) {
+    for (; i + 4 <= count; i += 4) {
+        prodx = _mm_mul_ps(prodx, _mm_loadu_ps(&vec_array->x[i]));
+        prody = _mm_mul_ps(prody, _mm_loadu_ps(&vec_array->y[i]));
+        prodz = _mm_mul_ps(prodz, _mm_loadu_ps(&vec_array->z[i]));
+    }
+
+    vec3f_t result = {
+        hsum4_ps(prodx), 
+        hsum4_ps(prody), 
+        hsum4_ps(prodz)
+    };
+
+    for (; i < count; ++i) {
         result.x *= vec_array->x[i];
         result.y *= vec_array->y[i];
         result.z *= vec_array->z[i];
@@ -568,46 +503,6 @@ vec3f_arr_t *vec3f_arr_scale(vec3f_arr_t *restrict out, const vec3f_arr_t *restr
 // ----------------------------------------------------------------------------------------------------------------------------
 // vec4
 
-vec4f_t vec4f_add(const vec4f_t a, const vec4f_t b) {
-    return (vec4f_t){a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w};
-}
-
-vec4f_t vec4f_add3(const vec4f_t a, const vec4f_t b, const vec4f_t c) {
-    return (vec4f_t){a.x + b.x + c.x, a.y + b.y + c.y, a.z + b.z + c.z, a.w + b.w + c.w};
-}
-
-vec4f_t vec4f_mul(const vec4f_t a, const vec4f_t b) {
-    return (vec4f_t){a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w};
-}
-
-vec4f_t vec4f_mul3(const vec4f_t a, const vec4f_t b, const vec4f_t c) {
-    return (vec4f_t){a.x * b.x * c.x, a.y * b.y * c.y, a.z * b.z * c.z, a.w * b.w * c.w};
-}
-
-vec4f_t vec4f_div(const vec4f_t a, const vec4f_t b) {
-    return (vec4f_t){a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w};
-}
-
-vec4f_t vec4f_div3(const vec4f_t a, const vec4f_t b, const vec4f_t c) {
-    return (vec4f_t){a.x / b.x / c.x, a.y / b.y / c.y, a.z / b.z / c.z, a.w / b.w / c.w};
-}
-
-vec4f_t vec4f_sub(const vec4f_t a, const vec4f_t b) {
-    return (vec4f_t){a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w};
-}
-
-vec4f_t vec4f_sub3(const vec4f_t a, const vec4f_t b, const vec4f_t c) {
-    return (vec4f_t){a.x - b.x - c.x, a.y - b.y - c.y, a.z - b.z - c.z, a.w - b.w - c.w};
-}
-
-float vec4f_dot(const vec4f_t a, const vec4f_t b) {
-    return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
-}
-
-float vec4f_dot3(const vec4f_t a, const vec4f_t b, const vec4f_t c) {
-    return a.x * b.x * c.x + a.y * b.y * c.y + a.z * b.z * c.z + a.w * b.w * c.w;
-}
-
 vec4f_t vec4f_n_add(const vec4f_arr_t *vec_array, size_t count) {
     vec4f_t result = {0.0f, 0.0f, 0.0f, 0.0f};
 
@@ -680,8 +575,6 @@ vec4f_t vec4f_n_sub(const vec4f_arr_t *vec_array, size_t count) {
 }
 
 vec4f_t vec4f_n_mul(const vec4f_arr_t *vec_array, size_t count) {
-    vec4f_t result = {1.0f, 1.0f, 1.0f, 1.0f};
-
     size_t i = 0;
     __m128 prodx = _mm_set1_ps(1.0f);
     __m128 prody = _mm_set1_ps(1.0f);
@@ -695,10 +588,12 @@ vec4f_t vec4f_n_mul(const vec4f_arr_t *vec_array, size_t count) {
         prodw = _mm_mul_ps(prodw, _mm_loadu_ps(&vec_array->w[i]));
     }
 
-    result.x = hsum4_ps(prodx); 
-    result.y = hsum4_ps(prody); 
-    result.z = hsum4_ps(prodz); 
-    result.w = hsum4_ps(prodw); 
+    vec4f_t result = {
+        hsum4_ps(prodx), 
+        hsum4_ps(prody), 
+        hsum4_ps(prodz), 
+        hsum4_ps(prodw) 
+    };
 
     for (; i < count; ++i) {
         result.x *= vec_array->x[i];
@@ -903,3 +798,9 @@ vec4f_arr_t *vec4f_arr_scale(vec4f_arr_t *restrict out, const vec4f_arr_t *restr
 
     return out;
 }
+
+
+
+// vertex
+
+

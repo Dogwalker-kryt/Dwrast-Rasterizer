@@ -1,6 +1,6 @@
 #include "ui.hpp"
 
-static void draw(GtkDrawingArea* area, cairo_t* cr, int width, int height, gpointer data) {
+void draw(GtkDrawingArea* area, cairo_t* cr, int width, int height, gpointer data) {
     application_t *state = static_cast<application_t*>(data);
 
     cairo_surface_t* surface = cairo_image_surface_create_for_data(

@@ -5,6 +5,12 @@
 #include <immintrin.h>
 
 #ifdef __cplusplus
+#define VEC_INIT(type, ...) type{__VA_ARGS__}
+#else
+#define VEC_INIT(type, ...) (type){__VA_ARGS__}
+#endif
+
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -86,16 +92,71 @@ vec3f_t *vec3f_arr_to_aos(const vec3f_arr_t *restrict arr, vec3f_t *restrict out
 vec4f_t *vec4f_arr_to_aos(const vec4f_arr_t *restrict arr, vec4f_t *restrict out, size_t count);
 
 // vec2f_t math
-vec2f_t vec2f_add(const vec2f_t a, const vec2f_t b);
-vec2f_t vec2f_add3(const vec2f_t a, const vec2f_t b, const vec2f_t c);
-vec2f_t vec2f_mul(const vec2f_t a, const vec2f_t b);
-vec2f_t vec2f_mul3(const vec2f_t a, const vec2f_t b, const vec2f_t c);
-vec2f_t vec2f_div(const vec2f_t a, const vec2f_t b);
-vec2f_t vec2f_div3(const vec2f_t a, const vec2f_t b, const vec2f_t c);
-vec2f_t vec2f_sub(const vec2f_t a, const vec2f_t b);
-vec2f_t vec2f_sub3(const vec2f_t a, const vec2f_t b, const vec2f_t c);
-float vec2f_dot(const vec2f_t a, const vec2f_t b);
-float vec2f_dot3(const vec2f_t a, const vec2f_t b, const vec2f_t c);
+
+static inline vec2f_t vec2f_add(const vec2f_t a, const vec2f_t b) {
+    return VEC_INIT(vec2f_t,
+        a.x + b.x, 
+        a.y + b.y
+    );
+}
+
+static inline vec2f_t vec2f_add3(const vec2f_t a, const vec2f_t b, const vec2f_t c) {
+    return VEC_INIT(vec2f_t,
+        a.x + b.x + c.x, 
+        a.y + b.y + c.y
+    );
+}
+
+static inline vec2f_t vec2f_mul(const vec2f_t a, const vec2f_t b) {
+    return VEC_INIT(vec2f_t,
+        a.x * b.x, 
+        a.y * b.y
+    );
+}
+
+static inline vec2f_t vec2f_mul3(const vec2f_t a, const vec2f_t b, const vec2f_t c) {
+    return VEC_INIT(vec2f_t,
+        a.x * b.x * c.x, 
+        a.y * b.y * c.y
+    );
+}
+
+static inline vec2f_t vec2f_div(const vec2f_t a, const vec2f_t b) {
+    return VEC_INIT(vec2f_t,
+        a.x / b.x, 
+        a.y / b.y
+    );
+}
+
+static inline vec2f_t vec2f_div3(const vec2f_t a, const vec2f_t b, const vec2f_t c) {
+    return VEC_INIT(vec2f_t,
+        a.x / b.x / c.x, 
+        a.y / b.y / c.y
+    );
+}
+
+static inline vec2f_t vec2f_sub(const vec2f_t a, const vec2f_t b) {
+    return VEC_INIT(vec2f_t,
+        a.x - b.x, 
+        a.y - b.y
+    );
+}
+
+static inline vec2f_t vec2f_sub3(const vec2f_t a, const vec2f_t b, const vec2f_t c) {
+    return VEC_INIT(vec2f_t,
+        a.x - b.x - c.x, 
+        a.y - b.y - c.y
+    );
+}
+
+static inline float vec2f_dot(const vec2f_t a, const vec2f_t b) {
+    return a.x * b.x + a.y * b.y;
+}
+
+static inline float vec2f_dot3(const vec2f_t a, const vec2f_t b, const vec2f_t c) {
+    return a.x * b.x * c.x + a.y * b.y * c.y;
+}
+
 vec2f_t vec2f_n_add(const vec2f_arr_t *restrict vec_array, size_t count);
 /**
  * @brief Subtracts an array of vec2f_t vectors and returns the result.
@@ -112,19 +173,88 @@ vec2f_arr_t *vec2f_arr_add(vec2f_arr_t *restrict out, const vec2f_arr_t *restric
 vec2f_arr_t *vec2f_arr_sub(vec2f_arr_t *restrict out, const vec2f_arr_t *restrict a, const vec2f_arr_t *restrict b, size_t count);
 vec2f_arr_t *vec2f_arr_mul(vec2f_arr_t *restrict out, const vec2f_arr_t *restrict a, const vec2f_arr_t *restrict b, size_t count);
 vec2f_arr_t *vec2f_arr_div(vec2f_arr_t *restrict out, const vec2f_arr_t *restrict a, const vec2f_arr_t *restrict b, size_t count);
+static inline vec2f_t vec2f_lerp(vec2f_t a, vec2f_t b, float t) {
+    return VEC_INIT(vec2f_t,
+        a.x + (b.x - a.x) * t,
+        a.y + (b.y - a.y) * t
+    );
+}
+
 
 // vec3f_t math
 
-vec3f_t vec3f_add(const vec3f_t a, const vec3f_t b);
-vec3f_t vec3f_add3(const vec3f_t a, const vec3f_t b, const vec3f_t c);
-vec3f_t vec3f_mul(const vec3f_t a, const vec3f_t b);
-vec3f_t vec3f_mul3(const vec3f_t a, const vec3f_t b, const vec3f_t c);
-vec3f_t vec3f_div(const vec3f_t a, const vec3f_t b);
-vec3f_t vec3f_div3(const vec3f_t a, const vec3f_t b, const vec3f_t c);
-vec3f_t vec3f_sub(const vec3f_t a, const vec3f_t b);
-vec3f_t vec3f_sub3(const vec3f_t a, const vec3f_t b, const vec3f_t c);
-float vec3f_dot(const vec3f_t a, const vec3f_t b);
-float vec3f_dot3(const vec3f_t a, const vec3f_t b, const vec3f_t c);
+static inline vec3f_t vec3f_add(const vec3f_t a, const vec3f_t b) {
+    return VEC_INIT(vec3f_t,
+        a.x + b.x, 
+        a.y + b.y, 
+        a.z + b.z
+    );
+}
+
+static inline vec3f_t vec3f_add3(const vec3f_t a, const vec3f_t b, const vec3f_t c) {
+    return VEC_INIT(vec3f_t,
+        a.x + b.x + c.x, 
+        a.y + b.y + c.y, 
+        a.z + b.z + c.z
+    );
+}
+
+static inline vec3f_t vec3f_mul(const vec3f_t a, const vec3f_t b) {
+    return VEC_INIT(vec3f_t,
+        a.x * b.x, 
+        a.y * b.y, 
+        a.z * b.z
+    );
+}
+
+static inline vec3f_t vec3f_mul3(const vec3f_t a, const vec3f_t b, const vec3f_t c) {
+    return VEC_INIT(vec3f_t,
+        a.x * b.x * c.x, 
+        a.y * b.y * c.y, 
+        a.z * b.z * c.z
+    );
+}
+
+static inline vec3f_t vec3f_div(const vec3f_t a, const vec3f_t b) {
+    return VEC_INIT(vec3f_t,
+        a.x / b.x, 
+        a.y / b.y, 
+        a.z / b.z
+    );
+}
+
+static inline vec3f_t vec3f_div3(const vec3f_t a, const vec3f_t b, const vec3f_t c) {
+    return VEC_INIT(vec3f_t,
+        a.x / b.x / c.x, 
+        a.y / b.y / c.y, 
+        a.z / b.z / c.z
+    );
+}
+
+static inline vec3f_t vec3f_sub(const vec3f_t a, const vec3f_t b) {
+    return VEC_INIT(vec3f_t,
+        a.x - b.x, 
+        a.y - b.y, 
+        a.z - b.z
+    );
+}
+
+static inline vec3f_t vec3f_sub3(const vec3f_t a, const vec3f_t b, const vec3f_t c) {
+    return VEC_INIT(vec3f_t,
+        a.x - b.x - c.x, 
+        a.y - b.y - c.y, 
+        a.z - b.z - c.z
+    );
+}
+
+static inline float vec3f_dot(const vec3f_t a, const vec3f_t b) {
+    return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+
+static inline float vec3f_dot3(const vec3f_t a, const vec3f_t b, const vec3f_t c) {
+    return a.x * b.x * c.x + a.y * b.y * c.y + a.z * b.z * c.z;
+}
+
 vec3f_t vec3f_n_add(const vec3f_arr_t *restrict vec_array, size_t count);
 /**
  * @brief Subtracts an array of vec3f_t vectors and returns the result. 
@@ -142,19 +272,96 @@ vec3f_arr_t *vec3f_arr_sub(vec3f_arr_t *restrict out, const vec3f_arr_t *restric
 vec3f_arr_t *vec3f_arr_mul(vec3f_arr_t *restrict out, const vec3f_arr_t *restrict a, const vec3f_arr_t *restrict b, size_t count);
 vec3f_arr_t *vec3f_arr_div(vec3f_arr_t *restrict out, const vec3f_arr_t *restrict a, const vec3f_arr_t *restrict b, size_t count);
 vec3f_arr_t *vec3f_arr_scale(vec3f_arr_t *restrict out, const vec3f_arr_t *restrict vec_array, float s, size_t count);
+static inline vec3f_t vec3f_lerp(vec3f_t a, vec3f_t b, float t) {
+    return VEC_INIT(vec3f_t,
+        a.x + (b.x - a.x) * t,
+        a.y + (b.y - a.y) * t,
+        a.z + (b.z - a.z) * t
+    );
+}
 
 // vec4f_t math
 
-vec4f_t vec4f_add(const vec4f_t a, const vec4f_t b);
-vec4f_t vec4f_add3(const vec4f_t a, const vec4f_t b, const vec4f_t c);
-vec4f_t vec4f_mul(const vec4f_t a, const vec4f_t b);
-vec4f_t vec4f_mul3(const vec4f_t a, const vec4f_t b, const vec4f_t c);
-vec4f_t vec4f_div(const vec4f_t a, const vec4f_t b);
-vec4f_t vec4f_div3(const vec4f_t a, const vec4f_t b, const vec4f_t c);
-vec4f_t vec4f_sub(const vec4f_t a, const vec4f_t b);
-vec4f_t vec4f_sub3(const vec4f_t a, const vec4f_t b, const vec4f_t c);
-float vec4f_dot(const vec4f_t a, const vec4f_t b);
-float vec4f_dot3(const vec4f_t a, const vec4f_t b, const vec4f_t c);
+static inline vec4f_t vec4f_add(const vec4f_t a, const vec4f_t b) {
+    return VEC_INIT(vec4f_t,
+        a.x + b.x, 
+        a.y + b.y, 
+        a.z + b.z, 
+        a.w + b.w
+    );
+}
+
+static inline vec4f_t vec4f_add3(const vec4f_t a, const vec4f_t b, const vec4f_t c) {
+    return VEC_INIT(vec4f_t,
+        a.x + b.x + c.x, 
+        a.y + b.y + c.y, 
+        a.z + b.z + c.z, 
+        a.w + b.w + c.w
+    );
+}
+
+static inline vec4f_t vec4f_mul(const vec4f_t a, const vec4f_t b) {
+    return VEC_INIT(vec4f_t,
+        a.x * b.x, 
+        a.y * b.y, 
+        a.z * b.z, 
+        a.w * b.w
+    );
+}
+
+static inline vec4f_t vec4f_mul3(const vec4f_t a, const vec4f_t b, const vec4f_t c) {
+    return VEC_INIT(vec4f_t,
+        a.x * b.x * c.x, 
+        a.y * b.y * c.y, 
+        a.z * b.z * c.z, 
+        a.w * b.w * c.w
+    );
+}
+
+static inline vec4f_t vec4f_div(const vec4f_t a, const vec4f_t b) {
+    return VEC_INIT(vec4f_t,
+        a.x / b.x, 
+        a.y / b.y, 
+        a.z / b.z, 
+        a.w / b.w
+    );
+}
+
+static inline vec4f_t vec4f_div3(const vec4f_t a, const vec4f_t b, const vec4f_t c) {
+    return VEC_INIT(vec4f_t,
+        a.x / b.x / c.x, 
+        a.y / b.y / c.y, 
+        a.z / b.z / c.z, 
+        a.w / b.w / c.w
+    );
+}
+
+static inline vec4f_t vec4f_sub(const vec4f_t a, const vec4f_t b) {
+    return VEC_INIT(vec4f_t,
+        a.x - b.x, 
+        a.y - b.y, 
+        a.z - b.z, 
+        a.w - b.w
+    );
+}
+
+static inline vec4f_t vec4f_sub3(const vec4f_t a, const vec4f_t b, const vec4f_t c) {
+    return VEC_INIT(vec4f_t,
+        a.x - b.x - c.x, 
+        a.y - b.y - c.y, 
+        a.z - b.z - c.z, 
+        a.w - b.w - c.w
+    );
+}
+
+static inline float vec4f_dot(const vec4f_t a, const vec4f_t b) {
+    return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
+}
+
+static inline float vec4f_dot3(const vec4f_t a, const vec4f_t b, const vec4f_t c) {
+    return a.x * b.x * c.x + a.y * b.y * c.y + a.z * b.z * c.z + a.w * b.w * c.w;
+}
+
 vec4f_t vec4f_n_add(const vec4f_arr_t *restrict vec_array, size_t count);
 /**
  * @brief Subtracts an array of vec4f_t vectors and returns the result.
@@ -172,6 +379,100 @@ vec4f_arr_t *vec4f_arr_sub(vec4f_arr_t *restrict out, const vec4f_arr_t *restric
 vec4f_arr_t *vec4f_arr_mul(vec4f_arr_t *restrict out, const vec4f_arr_t *restrict a, const vec4f_arr_t *restrict b, size_t count);
 vec4f_arr_t *vec4f_arr_div(vec4f_arr_t *restrict out, const vec4f_arr_t *restrict a, const vec4f_arr_t *restrict b, size_t count);
 vec4f_arr_t *vec4f_arr_scale(vec4f_arr_t *restrict out, const vec4f_arr_t *restrict vec_array, float s, size_t count);
+static inline vec4f_t vec4f_lerp(vec4f_t a, vec4f_t b, float t) {
+    __m128 va = _mm_loadu_ps(&a.x);
+    __m128 vb = _mm_loadu_ps(&b.x);
+    __m128 vt = _mm_set1_ps(t);
+
+    __m128 out = _mm_add_ps(va, _mm_mul_ps(_mm_sub_ps(vb, va), vt));
+
+    vec4f_t r;
+    _mm_storeu_ps(&r.x, out);
+    return r;
+}
+
+static inline vec4f_t vec4f_scale(const vec4f_t a, const float t) {
+    const __m128 scale = _mm_set1_ps(t);
+    const __m128 va = _mm_loadu_ps(&a.x);
+
+    vec4f_t res;
+    _mm_storeu_ps(&res.x, _mm_mul_ps(va, scale));
+
+    return res;
+}
+
+
+// vertex_t
+
+static inline vertex_t vertex_add(const vertex_t a, const vertex_t b) {
+    return VEC_INIT(vertex_t,
+        vec4f_add(a.pos, b.pos),
+        vec4f_add(a.color, b.color)
+    );
+}
+
+static inline vertex_t vertex_add3(const vertex_t a, const vertex_t b, const vertex_t c) {
+    return VEC_INIT(vertex_t,
+        vec4f_add3(a.pos, b.pos, c.pos),
+        vec4f_add3(a.color, b.color, c.color)
+    );
+}
+
+static inline vertex_t vertex_sub(const vertex_t a, const vertex_t b) {
+    return VEC_INIT(vertex_t,
+        vec4f_sub(a.pos, b.pos),
+        vec4f_sub(a.color, b.color)
+    );
+}
+
+static inline vertex_t vertex_sub3(const vertex_t a, const vertex_t b, const vertex_t c) {
+    return VEC_INIT(vertex_t,
+        vec4f_sub3(a.pos, b.pos, c.pos),
+        vec4f_sub3(a.color, b.color, c.color)
+    );
+}
+
+static inline vertex_t vertex_mul(const vertex_t a, const vertex_t b) {
+    return VEC_INIT(vertex_t,
+        vec4f_mul(a.pos, b.pos),
+        vec4f_mul(a.color, b.color)
+    );
+}
+
+static inline vertex_t vertex_mul3(const vertex_t a, const vertex_t b, const vertex_t c) {
+    return VEC_INIT(vertex_t,
+        vec4f_mul3(a.pos, b.pos, c.pos),
+        vec4f_mul3(a.color, b.color, c.color)
+    );
+}
+
+static inline vertex_t vertex_div(const vertex_t a, const vertex_t b) {
+    return VEC_INIT(vertex_t,
+        vec4f_div(a.pos, b.pos),
+        vec4f_div(a.color, b.color)
+    );
+}
+
+static inline vertex_t vertex_div3(const vertex_t a, const vertex_t b, const vertex_t c) {
+    return VEC_INIT(vertex_t,
+        vec4f_div3(a.pos, b.pos, c.pos),
+        vec4f_div3(a.color, b.color, c.color)
+    );
+}
+
+static inline vertex_t vertex_scale(const vertex_t v, float s) {
+    return VEC_INIT(vertex_t,
+        vec4f_scale(v.pos, s),
+        vec4f_scale(v.color, s)
+    );
+}
+
+static inline vertex_t vertex_lerp(const vertex_t a, const vertex_t b, float t) {
+    return VEC_INIT(vertex_t, 
+        vec4f_lerp(a.pos, b.pos, t),
+        vec4f_lerp(a.color, b.color, t)
+    );
+}
 
 #ifdef __cplusplus
 }

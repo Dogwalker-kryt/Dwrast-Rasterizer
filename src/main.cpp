@@ -21,7 +21,7 @@ int main(int argc, char** argv) {
     {
         if (argc > 1) {
             state.argc_ = argc;
-            memcpy(state.argv_, argv, sizeof(argv));
+            memcpy(state.argv_, argv, sizeof(char*) * (argc + 1));
 
             for (uint8_t i = 0; i < argc; ++i) {
                 if (strncmp(argv[i], valid_flags[0], 16)) state.use_gtk_ = true;

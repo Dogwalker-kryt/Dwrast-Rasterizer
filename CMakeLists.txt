@@ -32,4 +32,5 @@ target_compile_options(cpu_rasterizer
         -Wpedantic
         -O3
         -march=native
+        -flto
 )

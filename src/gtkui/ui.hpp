@@ -6,7 +6,7 @@
 #include <cairo.h>
 
 
-static void draw(GtkDrawingArea* area, cairo_t* cr, int width, int height, gpointer data);
+void draw(GtkDrawingArea* area, cairo_t* cr, int width, int height, gpointer data);
 
 // void activate_test(GtkApplication* app, gpointer);
 
