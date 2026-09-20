@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 
 project(cpu_rasterizer
     VERSION 0.1.0
-    LANGUAGES CXX
+    LANGUAGES C CXX
 )
 
 set(CMAKE_CXX_STANDARD 17)
@@ -16,6 +16,8 @@ pkg_check_modules(GTK4 REQUIRED IMPORTED_TARGET gtk4)
 
 add_executable(cpu_rasterizer
     src/main.cpp
+    src/rasterizer/vector/vec.c
+    src/gtkui/ui.cpp
 )
 
 target_link_libraries(cpu_rasterizer

@@ -4,6 +4,12 @@
 #include <stddef.h>
 #include <immintrin.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define restrict __restrict
+
 typedef struct vec2f_t {
     float x, y;
 } vec2f_t;
@@ -108,6 +114,7 @@ vec2f_arr_t *vec2f_arr_mul(vec2f_arr_t *restrict out, const vec2f_arr_t *restric
 vec2f_arr_t *vec2f_arr_div(vec2f_arr_t *restrict out, const vec2f_arr_t *restrict a, const vec2f_arr_t *restrict b, size_t count);
 
 // vec3f_t math
+
 vec3f_t vec3f_add(const vec3f_t a, const vec3f_t b);
 vec3f_t vec3f_add3(const vec3f_t a, const vec3f_t b, const vec3f_t c);
 vec3f_t vec3f_mul(const vec3f_t a, const vec3f_t b);
@@ -137,6 +144,7 @@ vec3f_arr_t *vec3f_arr_div(vec3f_arr_t *restrict out, const vec3f_arr_t *restric
 vec3f_arr_t *vec3f_arr_scale(vec3f_arr_t *restrict out, const vec3f_arr_t *restrict vec_array, float s, size_t count);
 
 // vec4f_t math
+
 vec4f_t vec4f_add(const vec4f_t a, const vec4f_t b);
 vec4f_t vec4f_add3(const vec4f_t a, const vec4f_t b, const vec4f_t c);
 vec4f_t vec4f_mul(const vec4f_t a, const vec4f_t b);
@@ -164,3 +172,7 @@ vec4f_arr_t *vec4f_arr_sub(vec4f_arr_t *restrict out, const vec4f_arr_t *restric
 vec4f_arr_t *vec4f_arr_mul(vec4f_arr_t *restrict out, const vec4f_arr_t *restrict a, const vec4f_arr_t *restrict b, size_t count);
 vec4f_arr_t *vec4f_arr_div(vec4f_arr_t *restrict out, const vec4f_arr_t *restrict a, const vec4f_arr_t *restrict b, size_t count);
 vec4f_arr_t *vec4f_arr_scale(vec4f_arr_t *restrict out, const vec4f_arr_t *restrict vec_array, float s, size_t count);
+
+#ifdef __cplusplus
+}
+#endif
