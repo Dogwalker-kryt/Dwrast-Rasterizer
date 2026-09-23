@@ -28,14 +28,6 @@ typedef struct vec4f_t {
     float x, y, z, w;
 } vec4f_t;
 
-typedef struct vertex_t {
-    vec4f_t pos, color;
-} vertex_t;
-
-typedef struct triangle_t {
-    vertex_t v0, v1, v2;
-} triangle_t;
-
 // SoA
 typedef struct vec2f_arr_t {
     float *x;
@@ -55,6 +47,15 @@ typedef struct vec4f_arr_t {
     float *w;
 } vec4f_arr_t;
 
+/**
+ * @brief same as vec4f_t; compatible with vec4f_t Arithmetic functions
+ */
+typedef vec4f_t rgba_t;
+
+/**
+ * @brief same as vec3f_t; compatible with vec4f_t Arithmetic functions
+ */
+typedef vec3f_t barycentric_t;
 
 static inline float hsum4(__m128 v) {
     __m128 t = _mm_add_ps(v, _mm_movehl_ps(v, v));
@@ -157,6 +158,14 @@ static inline float vec2f_dot3(const vec2f_t a, const vec2f_t b, const vec2f_t c
     return a.x * b.x * c.x + a.y * b.y * c.y;
 }
 
+static inline float vec2f_cross(const vec2f_t a, const vec2f_t b) {
+    return a.x * b.y - a.y * b.x;
+}
+
+static inline float vec2f_edge(const vec2f_t a, const vec2f_t b, const vec2f_t p) {
+    return vec2f_cross(vec2f_sub(b, a), vec2f_sub(p, a));
+}
+
 vec2f_t vec2f_n_add(const vec2f_arr_t *restrict vec_array, size_t count);
 /**
  * @brief Subtracts an array of vec2f_t vectors and returns the result.
@@ -254,6 +263,14 @@ static inline float vec3f_dot(const vec3f_t a, const vec3f_t b) {
 static inline float vec3f_dot3(const vec3f_t a, const vec3f_t b, const vec3f_t c) {
     return a.x * b.x * c.x + a.y * b.y * c.y + a.z * b.z * c.z;
 }
+
+// static inline vec3f_t vec3f_cross(const vec3f_t a, const vec3f_t b) {
+//     return VEC_INIT(vec3f_t,
+//         a.y * b.z - a.z * b.y,
+//         a.z * b.x - a.x * b.z,
+//         a.x * b.y - a.y * b.x
+//     );
+// }
 
 vec3f_t vec3f_n_add(const vec3f_arr_t *restrict vec_array, size_t count);
 /**
@@ -399,79 +416,6 @@ static inline vec4f_t vec4f_scale(const vec4f_t a, const float t) {
     _mm_storeu_ps(&res.x, _mm_mul_ps(va, scale));
 
     return res;
-}
-
-
-// vertex_t
-
-static inline vertex_t vertex_add(const vertex_t a, const vertex_t b) {
-    return VEC_INIT(vertex_t,
-        vec4f_add(a.pos, b.pos),
-        vec4f_add(a.color, b.color)
-    );
-}
-
-static inline vertex_t vertex_add3(const vertex_t a, const vertex_t b, const vertex_t c) {
-    return VEC_INIT(vertex_t,
-        vec4f_add3(a.pos, b.pos, c.pos),
-        vec4f_add3(a.color, b.color, c.color)
-    );
-}
-
-static inline vertex_t vertex_sub(const vertex_t a, const vertex_t b) {
-    return VEC_INIT(vertex_t,
-        vec4f_sub(a.pos, b.pos),
-        vec4f_sub(a.color, b.color)
-    );
-}
-
-static inline vertex_t vertex_sub3(const vertex_t a, const vertex_t b, const vertex_t c) {
-    return VEC_INIT(vertex_t,
-        vec4f_sub3(a.pos, b.pos, c.pos),
-        vec4f_sub3(a.color, b.color, c.color)
-    );
-}
-
-static inline vertex_t vertex_mul(const vertex_t a, const vertex_t b) {
-    return VEC_INIT(vertex_t,
-        vec4f_mul(a.pos, b.pos),
-        vec4f_mul(a.color, b.color)
-    );
-}
-
-static inline vertex_t vertex_mul3(const vertex_t a, const vertex_t b, const vertex_t c) {
-    return VEC_INIT(vertex_t,
-        vec4f_mul3(a.pos, b.pos, c.pos),
-        vec4f_mul3(a.color, b.color, c.color)
-    );
-}
-
-static inline vertex_t vertex_div(const vertex_t a, const vertex_t b) {
-    return VEC_INIT(vertex_t,
-        vec4f_div(a.pos, b.pos),
-        vec4f_div(a.color, b.color)
-    );
-}
-
-static inline vertex_t vertex_div3(const vertex_t a, const vertex_t b, const vertex_t c) {
-    return VEC_INIT(vertex_t,
-        vec4f_div3(a.pos, b.pos, c.pos),
-        vec4f_div3(a.color, b.color, c.color)
-    );
-}
-
-static inline vertex_t vertex_scale(const vertex_t v, float s) {
-    return VEC_INIT(vertex_t,
-        vec4f_scale(v.pos, s),
-        vec4f_scale(v.color, s)
-    );
-}
-
-static inline vertex_t vertex_lerp(const vertex_t a, const vertex_t b, float t) {
-    return VEC_INIT(vertex_t, 
-        vec4f_lerp(a.pos, b.pos, t),
-        vec4f_lerp(a.color, b.color, t)
-    );
 }
 
 #ifdef __cplusplus

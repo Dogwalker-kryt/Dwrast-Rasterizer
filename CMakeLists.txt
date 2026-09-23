@@ -33,4 +33,6 @@ target_compile_options(cpu_rasterizer
         -O3
         -march=native
         -flto
+        -msse2
+        -mfpmath=sse
 )

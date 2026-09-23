@@ -5,7 +5,7 @@
 #include <unistd.h>
 #include <immintrin.h>
 
-namespace cpu_rast {
+namespace dwrast {
 
 /**
  * @brief defines a pixel with x, y and color all stored as uint32_t

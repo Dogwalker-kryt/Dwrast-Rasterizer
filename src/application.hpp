@@ -3,11 +3,6 @@
 #include "rasterizer/cpu_rasterizer.hpp"
 #include <gtk/gtk.h>
 
-#define WIDTH 1000
-#define HEIGTH 500
-
-using FB = cpu_rast::Framebuffer<WIDTH, HEIGTH>;
-
 struct application_t {
     FB *frame_buffer_ = nullptr;
 
