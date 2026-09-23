@@ -11,7 +11,7 @@ using namespace dwrast;
 constexpr size_t frame_buffer_size = sizeof(FB);
 
 constexpr std::array<const char[16], 16> valid_flags = {
-    "-gtk" , "-", "-", "-", "-"
+    "-gtk" , "-ppm", "-", "-", "-"
 };
 
 int main(int argc, char** argv) {
@@ -24,10 +24,23 @@ int main(int argc, char** argv) {
             state.argc_ = argc;
             printf("[info] set argc:%d arguments to state\n", argc);
             state.argv_ = argv;
-            printf("[info]\n");
+            printf("[info] set state.argv to argv\n");
 
             for (uint8_t i = 0; i < argc; ++i) {
-                if (strncmp(argv[i], valid_flags[0], 16)) state.use_gtk_ = true;
+                if (strncmp(argv[i], valid_flags[0], 16) == 0) state.use_gtk_ = true;
+
+                if (strncmp(argv[i], valid_flags[1], 16) == 0) {
+                    if (i + 1 >= argc) {
+                        printf("%s[error]%s no filename entered\n", RED_ANSI, RESET_ANSI);
+                        state.exit_code = -1;
+                        goto EXIT;
+                    }
+
+                    state.write_ppm = true;
+                    memcpy(&state.file_name, argv[i + 1], sizeof(state.file_name));
+                    state.file_name[sizeof(state.file_name) - 1] = '\0';
+                    i++;
+                }
             }
         }
     }
@@ -49,8 +62,16 @@ int main(int argc, char** argv) {
         printf("[info] unrefed state.gtk_app_\n");
     }
 
-    free_state(&state);
-    return state.exit_code;
+    // state.frame_buffer_->clear(BLACK);
+
+    // // draw_triangles(state.frame_buffer_);
+
+    // state.frame_buffer_->write_ppm("test.ppm");
+
+    EXIT:
+        free_state(&state);
+        printf("[exit] exited with code:%d\n", state.exit_code);
+        return state.exit_code;
 }
 
 /**

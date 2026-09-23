@@ -4,6 +4,7 @@
 #include <memory.h>
 #include <unistd.h>
 #include <immintrin.h>
+#include <cstdio>
 
 namespace dwrast {
 
@@ -69,6 +70,32 @@ public:
     pixel_t get_pixel(const size_t x_, const size_t y_) const noexcept {
         return {x_, y_, pixels_[y_ * Width + x_]};
     }
+
+    bool write_ppm(const char *file_name) {
+        FILE *ppm_file = fopen(file_name, "wb");
+
+        if (!ppm_file) return false;
+
+        fprintf(ppm_file, "P6\n%zu %zu\n255\n", Width, Height);
+
+        for (size_t y = 0; y < Height; ++y) {
+            for (size_t x = 0; x < Width; ++x) {
+                const uint32_t pixel = pixels_[y * Width + x];
+
+                // Assumes pixel format: 0xAARRGGBB
+                const unsigned char red   = (pixel >> 16) & 0xff;
+                const unsigned char green = (pixel >> 8)  & 0xff;
+                const unsigned char blue  = pixel & 0xff;
+
+                fputc(red, ppm_file);
+                fputc(green, ppm_file);
+                fputc(blue, ppm_file);
+            }
+        }
+
+        fclose(ppm_file);
+        return true;
+        }
 };
 
 
