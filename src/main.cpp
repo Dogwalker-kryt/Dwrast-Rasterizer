@@ -15,23 +15,23 @@ constexpr std::array<const char[16], 16> valid_flags = {
 };
 
 int main(int argc, char** argv) {
-    printf("Initializing Rasterizer...\n");
+    printf("%sInitializing Rasterizer...%s\n", BOLD_ANSI, RESET_ANSI);
     application_t state{};
 
     // cli flags
     {
         if (argc > 1) {
             state.argc_ = argc;
-            printf("[info] set argc:%d arguments to state\n", argc);
+            printf("%s[info]%s set %sargc:%d%s arguments to state\n", BOLD_ANSI, RESET_ANSI, BOLD_ANSI, argc, RESET_ANSI);
             state.argv_ = argv;
-            printf("[info] set state.argv to argv\n");
+            printf("%s[info]%s set state.argv to argv\n", BOLD_ANSI, RESET_ANSI);
 
             for (uint8_t i = 0; i < argc; ++i) {
                 if (strncmp(argv[i], valid_flags[0], 16) == 0) state.use_gtk_ = true;
 
                 if (strncmp(argv[i], valid_flags[1], 16) == 0) {
                     if (i + 1 >= argc) {
-                        printf("%s[error]%s no filename entered\n", RED_ANSI, RESET_ANSI);
+                        printf("%s[ERROR]%s no filename entered\n", RED_ANSI, RESET_ANSI);
                         state.exit_code = -1;
                         goto EXIT;
                     }
@@ -46,20 +46,20 @@ int main(int argc, char** argv) {
     }
 
     state.frame_buffer_ = new Framebuffer<WIDTH, HEIGTH>;
-    printf("[info] allocated bytes:%lu Framebuffer with width:%d heigth:%d\n", frame_buffer_size, WIDTH, HEIGTH);
+    printf("%s[info]%s allocated %sbytes:%lu%s Framebuffer with %swidth:%d heigth:%d%s\n", BOLD_ANSI, RESET_ANSI, BOLD_ANSI, frame_buffer_size, RESET_ANSI, BOLD_ANSI, WIDTH, HEIGTH, RESET_ANSI);
 
     if (state.use_gtk_) {
-        printf("Initializing GTK Window...\n");
+        printf("%sInitializing GTK Window...%s\n", BOLD_ANSI, RESET_ANSI);
 
         state.gtk_app_ = gtk_application_new("com.example.cpurasterizer", G_APPLICATION_DEFAULT_FLAGS);
-        printf("[info] created new gtk application\n");
+        printf("%s[info]%s created new gtk application\n", BOLD_ANSI, RESET_ANSI);
 
         g_signal_connect(state.gtk_app_, "activate", G_CALLBACK(activate), &state);
         int status = g_application_run(G_APPLICATION(state.gtk_app_), 0, NULL);
-        printf("[info] connected callback and started gtk application\n");
+        printf("%s[info]%s connected callback and started gtk application\n", BOLD_ANSI, RESET_ANSI);
 
         g_object_unref(state.gtk_app_);
-        printf("[info] unrefed state.gtk_app_\n");
+        printf("%s[info]%s unrefed state.gtk_app_\n", BOLD_ANSI, RESET_ANSI);
     }
 
     // state.frame_buffer_->clear(BLACK);
@@ -70,7 +70,7 @@ int main(int argc, char** argv) {
 
     EXIT:
         free_state(&state);
-        printf("[exit] exited with code:%d\n", state.exit_code);
+        printf("%s[EXIT]%s exited with %scode:%d%s\n",BOLD_ANSI, RESET_ANSI, BOLD_ANSI, state.exit_code, RESET_ANSI);
         return state.exit_code;
 }
 
