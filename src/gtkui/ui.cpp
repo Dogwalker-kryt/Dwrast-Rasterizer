@@ -4,11 +4,11 @@ void draw(GtkDrawingArea* area, cairo_t* cr, int width, int height, gpointer dat
     application_t *state = static_cast<application_t*>(data);
 
     cairo_surface_t* surface = cairo_image_surface_create_for_data(
-        reinterpret_cast<unsigned char*>(state->frame_buffer_->data()),
+        reinterpret_cast<unsigned char*>(state->frame_buffer_->buffer),
         CAIRO_FORMAT_ARGB32,
-        state->frame_buffer_->width(),
-        state->frame_buffer_->height(),
-        state->frame_buffer_->width() * sizeof(uint32_t)
+        static_cast<int>(state->frame_buffer_->width),
+        static_cast<int>(state->frame_buffer_->heigth),
+        static_cast<int>(state->frame_buffer_->width * sizeof(uint32_t))
     );
 
     cairo_set_source_surface(cr, surface, 0, 0);
@@ -56,13 +56,13 @@ void activate(GtkApplication *app, gpointer data) {
     state->window_ = gtk_application_window_new(state->gtk_app_);
 
 
-    gtk_window_set_title(GTK_WINDOW(state->window_), "CPU Rasterizer");
+    gtk_window_set_title(GTK_WINDOW(state->window_), "DwRast Rasterizer");
 
     state->area_ = gtk_drawing_area_new();
-    gtk_drawing_area_set_content_width(GTK_DRAWING_AREA(state->area_), 1000);
-    gtk_drawing_area_set_content_height(GTK_DRAWING_AREA(state->area_), 500);
+    gtk_drawing_area_set_content_width(GTK_DRAWING_AREA(state->area_), state->width);
+    gtk_drawing_area_set_content_height(GTK_DRAWING_AREA(state->area_), state->heigth);
 
-    gtk_drawing_area_set_draw_func(GTK_DRAWING_AREA(state->area_), draw, &state->frame_buffer_ ,nullptr);
+    gtk_drawing_area_set_draw_func(GTK_DRAWING_AREA(state->area_), draw, state ,nullptr);
 
     gtk_window_set_child(GTK_WINDOW(state->window_), state->area_);
     gtk_window_present(GTK_WINDOW(state->window_));

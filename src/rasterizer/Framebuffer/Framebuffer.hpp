@@ -95,9 +95,77 @@ public:
 
         fclose(ppm_file);
         return true;
-        }
+    }
 };
 
+typedef struct FB2 {
+    size_t width;
+    size_t heigth;
+    uint32_t *buffer;
 
+} FB2;
+
+static inline FB2 *create_FB2(const size_t width, const size_t heigth) {
+    FB2 *fb = new FB2();
+
+    fb->heigth = heigth;
+    fb->width = width;
+    fb->buffer = new uint32_t[width * heigth];
+
+    return fb;
+}
+
+__always_inline void destroy_FB2(FB2 *fb) {
+    delete[] fb->buffer;
+    delete fb;
+}
+
+__always_inline void clear_buf_FB2(FB2 *fb, uint32_t color_) noexcept {
+        
+    const __m128i color_vec = _mm_set1_epi32(color_);
+    size_t i{0};
+
+    for (; i + 4 <= fb->width * fb->heigth; i += 4) {
+        _mm_storeu_si128(reinterpret_cast<__m128i*>(&fb->buffer[i]), color_vec);
+    } 
+}
+
+static inline bool write_ppm_FB2(FB2 *fb, const char *file_name) {
+    FILE *ppm_f = fopen(file_name, "wb");
+    
+    if (!ppm_f) return 0;
+    
+    fprintf(ppm_f, "P6\n%zu %zu\n255\n", fb->width, fb->heigth);
+
+    for (size_t y = 0; y < fb->heigth; ++y) {
+        for (size_t x = 0; x < fb->width; ++x) {
+            const uint32_t pixel = fb->buffer[y * fb->width + x];
+
+            // Assumes pixel format: 0xAARRGGBB
+            const unsigned char red   = (pixel >> 16) & 0xff;
+            const unsigned char green = (pixel >> 8)  & 0xff;
+            const unsigned char blue  = pixel & 0xff;
+
+            fputc(red, ppm_f);
+            fputc(green, ppm_f);
+            fputc(blue, ppm_f);
+        }
+    }
+
+    fclose(ppm_f);
+    return true;
+}
+
+__always_inline void set_pixel_FB2(FB2 *fb, const size_t x_, const size_t y_, const uint32_t color_) noexcept {
+    fb->buffer[y_ * fb->width + x_] = color_;
+}
+
+__always_inline uint32_t get_pixel_color_FB2(FB2 *fb, const size_t x_, const size_t y_) noexcept {
+    return fb->buffer[y_ * fb->width + x_];
+}
+
+__always_inline pixel_t get_pixel_FB2(FB2 *fb, const size_t x_, const size_t y_) noexcept {
+    return {x_, y_, fb->buffer[y_ * fb->width + x_]};
+}
 
 };

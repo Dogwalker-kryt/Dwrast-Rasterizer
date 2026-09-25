@@ -6,3 +6,6 @@
 #define HEIGTH 500
 
 using FB = dwrast::Framebuffer<WIDTH, HEIGTH>;
+
+template<uint64_t width, uint64_t heigth>
+using FB2 = dwrast::Framebuffer<width, heigth>;

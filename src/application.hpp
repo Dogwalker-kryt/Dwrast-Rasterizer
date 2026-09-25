@@ -4,7 +4,7 @@
 #include <gtk/gtk.h>
 
 struct application_t {
-    FB *frame_buffer_ = nullptr;
+    dwrast::FB2 *frame_buffer_ = nullptr;
 
     GtkApplication *gtk_app_ = nullptr;
     GtkWidget *window_ = nullptr;
@@ -13,11 +13,14 @@ struct application_t {
     bool use_gtk_ = false;
     bool write_ppm = false;
     char file_name[64];
+    bool use_custom_FB_args;
+    uint64_t width = WIDTH;
+    uint64_t heigth = HEIGTH;
 
     int argc_{0};
     char **argv_;
 
-    int8_t exit_code{1};
+    int8_t exit_code{0};
 };
 
 inline void free_state(application_t *state) {
@@ -163,7 +166,7 @@ inline void free_state(application_t *state) {
 
 
 inline void render_frame(application_t *state) {
-    state->frame_buffer_->clear(BLACK);
+    dwrast::clear_buf_FB2(state->frame_buffer_, BLACK);
 
     // here comes my rendere stuff eventualy
     // draw_triangles(state->frame_buffer_);

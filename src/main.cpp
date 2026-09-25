@@ -1,17 +1,18 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <array>
 #include "rasterizer/cpu_rasterizer.hpp"
 #include "gtkui/ui.hpp"
 #include "application.hpp"
-#include <iostream>
 
 using namespace dwrast;
 
 constexpr size_t frame_buffer_size = sizeof(FB);
+static size_t frame_buffer_size_dyn;
 
 constexpr std::array<const char[16], 16> valid_flags = {
-    "-gtk" , "-ppm", "-", "-", "-"
+    "-gtk" , "-ppm", "-width", "-heigth", "-"
 };
 
 int main(int argc, char** argv) {
@@ -41,12 +42,46 @@ int main(int argc, char** argv) {
                     state.file_name[sizeof(state.file_name) - 1] = '\0';
                     i++;
                 }
+
+                if (strncmp(argv[i], valid_flags[2], 16) == 0) {
+                    if (i + 1 >= argc) {
+                        printf("%s[ERROR]%s no width argument entered\n", RED_ANSI, RESET_ANSI);
+                        state.exit_code = -1;
+                        goto EXIT;
+                    }
+
+                    state.use_custom_FB_args = true;
+                    char *endptr = nullptr;
+                    state.width = strtoull(argv[i + 1], &endptr, 10);
+                    i++;
+                }
+
+                if (strncmp(argv[i], valid_flags[3], 16) == 0) {
+                    if (i + 1 >= argc) {
+                        printf("%s[ERROR]%s no height argument entered\n", RED_ANSI, RESET_ANSI);
+                        state.exit_code = -1;
+                        goto EXIT;
+                    }
+
+                    state.use_custom_FB_args = true;
+                    char *endptr = nullptr;
+                    state.heigth = strtoull(argv[i + 1], &endptr, 10);
+                    i++;
+                }
             }
         }
     }
 
-    state.frame_buffer_ = new Framebuffer<WIDTH, HEIGTH>;
-    printf("%s[info]%s allocated %sbytes:%lu%s Framebuffer with %swidth:%d heigth:%d%s\n", BOLD_ANSI, RESET_ANSI, BOLD_ANSI, frame_buffer_size, RESET_ANSI, BOLD_ANSI, WIDTH, HEIGTH, RESET_ANSI);
+    frame_buffer_size_dyn = frame_buffer_size;
+
+    if (state.use_custom_FB_args) {
+        state.frame_buffer_ = dwrast::create_FB2(state.width, state.heigth);
+        frame_buffer_size_dyn = state.width * state.heigth;
+    } else {
+        state.frame_buffer_ = dwrast::create_FB2(WIDTH, HEIGTH);
+    }
+
+    printf("%s[info]%s allocated %sbytes:%lu%s Framebuffer with %swidth:%lu heigth:%lu%s\n", BOLD_ANSI, RESET_ANSI, BOLD_ANSI, frame_buffer_size_dyn, RESET_ANSI, BOLD_ANSI, state.width, state.heigth, RESET_ANSI);
 
     if (state.use_gtk_) {
         printf("%sInitializing GTK Window...%s\n", BOLD_ANSI, RESET_ANSI);
