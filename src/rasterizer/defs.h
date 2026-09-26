@@ -10,7 +10,7 @@ using FB = dwrast::Framebuffer<WIDTH, HEIGTH>;
 template<uint64_t width, uint64_t heigth>
 using FB2 = dwrast::Framebuffer<width, heigth>;
 
-#define INT32_MIN(a, b) \
+#define INT_MINRES(a, b) \
     (((X) < (Y)) ? (X) : (Y))
 
 #
