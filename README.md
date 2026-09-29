@@ -1,32 +1,24 @@
-# CPU Rasterizer
+# Dwrast Software Rasterizer
 
-A lightweight CPU-based rasterizer built in C++17 for rendering triangles directly to a framebuffer. The project focuses on the fundamentals of software rendering: geometry math, triangle rasterization, pixel writes, and a simple GTK-based preview pipeline.
-
+A lightweight CPU-based rasterizer built in C++17 as a learning and expiremnt project
 This project is intentionally small and educational, but it is structured in a way that makes it easy to extend with texturing, perspective-correct interpolation, depth buffering, and more advanced rendering features.
-
-## Why this project
-
-Software rasterization is one of the clearest ways to understand how real-time graphics pipelines work at a low level. This renderer demonstrates the core concepts behind triangle filling, edge testing, framebuffer management, and windowed display output without depending on a full 3D engine or GPU API.
 
 ## Features
 
-- CPU-side triangle rasterization
+- CPU-side rasterization **(WIP)**
 - Custom framebuffer abstraction with pixel writes and clearing
 - Geometry utilities for vectors and triangle math
 - GTK4 window integration for live rendering previews
 - PPM export support for static image output
 - Resolution override via command-line arguments
-- CMake + Ninja build setup for fast local development
-- Optimized with C++17 and platform tuning flags for native x86_64 builds
+- CMake + Ninja build setup
 
 ## Project status
 
 This is an early-stage rendering project and a solid foundation for experimentation and learning. It is suitable for:
 
-- studying the rasterization pipeline
-- prototyping real-time graphics techniques
-- building a minimal software renderer from scratch
-- learning how a framebuffer and CPU pipeline fit together
+- looking at it
+- use for experimenting in personal projects
 
 ## Requirements
 
@@ -66,21 +58,21 @@ The application supports a few simple command-line flags:
 
 - `-gtk` — opens a GTK window and renders in a windowed preview
 - `-ppm <filename>` — writes the framebuffer to a PPM file
-- `-width <value>` — sets the framebuffer width
-- `-heigth <value>` — sets the framebuffer height
+- `-width <value>`, `-w <value>` — sets the framebuffer width
+- `-heigth <value>`, `-h <value>` — sets the framebuffer height
 
 Examples:
 
 ```bash
-./build/cpu_rasterizer -gtk
+./build/dwrast_rasterizer -gtk
 ```
 
 ```bash
-./build/cpu_rasterizer -ppm test.ppm -width 1280 -heigth 720
+./build/dwrast_rasterizer -ppm test.ppm -width 1280 -height 720
 ```
 
 ```bash
-./build/cpu_rasterizer -gtk -ppm output.ppm -width 800 -heigth 600
+./build/dwrast_rasterizer -gtk -ppm output.ppm -width 800 -height 600
 ```
 
 ## How it works
@@ -130,28 +122,11 @@ cpu-rasterizer/
 
 ## Roadmap
 
-Planned areas for growth include:
-
-- depth buffering
-- perspective-correct interpolation
-- textured triangles
-- camera and view transforms
-- OBJ model loading
-- more feature-rich rendering pipeline organization
-- benchmarking and optimization passes
-
-## Contributing
-
-Contributions are welcome. If you want to improve the renderer, add features, or fix issues:
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Open a pull request with a clear explanation of the improvement
+- basicly a whole and fully functional rasterizer, that makes it useful 
 
 ## License
 
-This project does not currently include a license file in the repository. If you plan to publish it publicly, add a license before release so users know the terms of use.
+This project is licend under the 
 
 ## Contact
 
