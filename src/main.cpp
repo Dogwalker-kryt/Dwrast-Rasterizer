@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <array>
-#include "rasterizer/cpu_rasterizer.hpp"
+#include "rasterizer/dwrast_rasterizer.hpp"
 #include "gtkui/ui.hpp"
 #include "application.hpp"
 
@@ -15,65 +15,76 @@ constexpr std::array<const char[16], 16> valid_flags = {
     "-gtk" , "-ppm", "-width", "-heigth", "-"
 };
 
+#define GTK_FLAG valid_flags[0]
+#define PPM_FLAG valid_flags[1]
+#define WIDTH_FLAG valid_flags[2]
+#define HEIGHT_FLAG valid_flags[3]
+
+__always_inline void set_state_custom_FB_true(application_t *state) {
+    state->use_custom_FB_args = true;
+}
+
+
 int main(int argc, char** argv) {
     printf("%sInitializing Rasterizer...%s\n", BOLD_ANSI, RESET_ANSI);
     application_t state{};
+    frame_buffer_size_dyn = frame_buffer_size;
 
     // cli flags
     {
-        if (argc > 1) {
-            state.argc_ = argc;
-            printf("%s[info]%s set %sargc:%d%s arguments to state\n", BOLD_ANSI, RESET_ANSI, BOLD_ANSI, argc, RESET_ANSI);
-            state.argv_ = argv;
-            printf("%s[info]%s set state.argv to argv\n", BOLD_ANSI, RESET_ANSI);
+        if (argc < 2) { goto SKIP_FLAGS; }
 
-            for (uint8_t i = 0; i < argc; ++i) {
-                if (strncmp(argv[i], valid_flags[0], 16) == 0) state.use_gtk_ = true;
+        state.argc_ = argc;
+        printf("%s[info]%s set %sargc:%d%s arguments to state\n", BOLD_ANSI, RESET_ANSI, BOLD_ANSI, argc, RESET_ANSI);
+        state.argv_ = argv;
+        printf("%s[info]%s set state.argv to argv\n", BOLD_ANSI, RESET_ANSI);
 
-                if (strncmp(argv[i], valid_flags[1], 16) == 0) {
-                    if (i + 1 >= argc) {
-                        printf("%s[ERROR]%s no filename entered\n", RED_ANSI, RESET_ANSI);
-                        state.exit_code = -1;
-                        goto EXIT;
-                    }
+        for (uint8_t i = 0; i < argc; ++i) {
+            if (strncmp(argv[i], GTK_FLAG, 16) == 0) state.use_gtk_ = true;
 
-                    state.write_ppm = true;
-                    memcpy(&state.file_name, argv[i + 1], sizeof(state.file_name));
-                    state.file_name[sizeof(state.file_name) - 1] = '\0';
-                    i++;
+            if (strncmp(argv[i], PPM_FLAG, 16) == 0) {
+                if (i + 1 >= argc) {
+                    printf("%s[ERROR]%s no filename entered\n", RED_ANSI, RESET_ANSI);
+                    state.exit_code = -1;
+                    goto EXIT;
                 }
 
-                if (strncmp(argv[i], valid_flags[2], 16) == 0) {
-                    if (i + 1 >= argc) {
-                        printf("%s[ERROR]%s no width argument entered\n", RED_ANSI, RESET_ANSI);
-                        state.exit_code = -1;
-                        goto EXIT;
-                    }
+                state.write_ppm = true;
+                memcpy(&state.file_name, argv[i + 1], sizeof(state.file_name));
+                state.file_name[sizeof(state.file_name) - 1] = '\0';
+                i++;
+            }
 
-                    state.use_custom_FB_args = true;
-                    char *endptr = nullptr;
-                    state.width = strtoull(argv[i + 1], &endptr, 10);
-                    i++;
+            if (strncmp(argv[i], WIDTH_FLAG, 16) == 0) {
+                if (i + 1 >= argc) {
+                    printf("%s[ERROR]%s no width argument entered\n", RED_ANSI, RESET_ANSI);
+                    state.exit_code = -1;
+                    goto EXIT;
                 }
 
-                if (strncmp(argv[i], valid_flags[3], 16) == 0) {
-                    if (i + 1 >= argc) {
-                        printf("%s[ERROR]%s no height argument entered\n", RED_ANSI, RESET_ANSI);
-                        state.exit_code = -1;
-                        goto EXIT;
-                    }
+                set_state_custom_FB_true(&state);
+                char *endptr = nullptr;
+                state.width = strtoull(argv[i + 1], &endptr, 10);
+                i++;
+            }
 
-                    state.use_custom_FB_args = true;
-                    char *endptr = nullptr;
-                    state.heigth = strtoull(argv[i + 1], &endptr, 10);
-                    i++;
+            if (strncmp(argv[i], HEIGHT_FLAG, 16) == 0) {
+                if (i + 1 >= argc) {
+                    printf("%s[ERROR]%s no height argument entered\n", RED_ANSI, RESET_ANSI);
+                    state.exit_code = -1;
+                    goto EXIT;
                 }
+
+                set_state_custom_FB_true(&state);
+                char *endptr = nullptr;
+                state.heigth = strtoull(argv[i + 1], &endptr, 10);
+                i++;
             }
         }
+        
     }
 
-    frame_buffer_size_dyn = frame_buffer_size;
-
+SKIP_FLAGS:
     if (state.use_custom_FB_args) {
         state.frame_buffer_ = dwrast::create_FB2(state.width, state.heigth);
         frame_buffer_size_dyn = state.width * state.heigth;

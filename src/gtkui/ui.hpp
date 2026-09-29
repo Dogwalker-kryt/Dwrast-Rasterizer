@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../rasterizer/cpu_rasterizer.hpp"
+#include "../rasterizer/dwrast_rasterizer.hpp"
 #include "../application.hpp"
 #include <gtk/gtk.h>
 #include <cairo.h>

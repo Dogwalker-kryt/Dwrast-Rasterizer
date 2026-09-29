@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <immintrin.h>
+#include <math.h>
 
 #ifdef __cplusplus
 #define VEC_INIT(type, ...) type{__VA_ARGS__}
@@ -47,10 +48,13 @@ typedef struct vec4f_arr_t {
     float *w;
 } vec4f_arr_t;
 
-/**
- * @brief same as vec4f_t; compatible with vec4f_t Arithmetic functions
- */
-typedef vec4f_t rgba_t;
+typedef struct rgba_t {
+    uint8_t r;
+    uint8_t g;
+    uint8_t b;
+    uint8_t a;
+} rgba_t;
+
 
 /**
  * @brief same as vec3f_t; compatible with vec4f_t Arithmetic functions
@@ -101,6 +105,13 @@ static inline vec2f_t vec2f_add(const vec2f_t a, const vec2f_t b) {
     );
 }
 
+static inline vec2f_t vec2f_add_scalar(const vec2f_t a, const float scalar) {
+    return VEC_INIT(vec2f_t,
+        a.x + scalar, 
+        a.y + scalar
+    );
+}
+
 static inline vec2f_t vec2f_add3(const vec2f_t a, const vec2f_t b, const vec2f_t c) {
     return VEC_INIT(vec2f_t,
         a.x + b.x + c.x, 
@@ -112,6 +123,13 @@ static inline vec2f_t vec2f_mul(const vec2f_t a, const vec2f_t b) {
     return VEC_INIT(vec2f_t,
         a.x * b.x, 
         a.y * b.y
+    );
+}
+
+static inline vec2f_t vec2f_mul_scalar(const vec2f_t a, const float scalar) {
+    return VEC_INIT(vec2f_t,
+        a.x * scalar, 
+        a.y * scalar
     );
 }
 
@@ -129,6 +147,13 @@ static inline vec2f_t vec2f_div(const vec2f_t a, const vec2f_t b) {
     );
 }
 
+static inline vec2f_t vec2f_div_scalar(const vec2f_t a, const float scalar) {
+    return VEC_INIT(vec2f_t,
+        a.x / scalar, 
+        a.y / scalar
+    );
+}
+
 static inline vec2f_t vec2f_div3(const vec2f_t a, const vec2f_t b, const vec2f_t c) {
     return VEC_INIT(vec2f_t,
         a.x / b.x / c.x, 
@@ -140,6 +165,13 @@ static inline vec2f_t vec2f_sub(const vec2f_t a, const vec2f_t b) {
     return VEC_INIT(vec2f_t,
         a.x - b.x, 
         a.y - b.y
+    );
+}
+
+static inline vec2f_t vec2f_sub_scalar(const vec2f_t a, const float scalar) {
+    return VEC_INIT(vec2f_t,
+        a.x - scalar, 
+        a.y - scalar
     );
 }
 
@@ -164,6 +196,30 @@ static inline float vec2f_cross(const vec2f_t a, const vec2f_t b) {
 
 static inline float vec2f_edge(const vec2f_t a, const vec2f_t b, const vec2f_t p) {
     return vec2f_cross(vec2f_sub(b, a), vec2f_sub(p, a));
+}
+
+/**
+ * @brief overload for vec2f_sub
+ */
+static inline vec2f_t edge_vector(const vec2f_t a, const vec2f_t b) {
+    return vec2f_sub(a, b);
+}
+
+__always_inline float vec2f_length_squared(const vec2f_t vec) {
+    return vec.x * vec.x + vec.y * vec.y;
+}
+
+__always_inline float vec2f_length(const vec2f_t vec) {
+    return sqrtf(vec2f_length_squared(vec));
+}
+
+static inline vec2f_t vec2f_normalize(const vec2f_t vec) {
+    float len = vec2f_length(vec);
+
+    return VEC_INIT(vec2f_t,
+        vec.x / len,
+        vec.y / len
+    );
 }
 
 vec2f_t vec2f_n_add(const vec2f_arr_t *restrict vec_array, size_t count);
@@ -264,13 +320,23 @@ static inline float vec3f_dot3(const vec3f_t a, const vec3f_t b, const vec3f_t c
     return a.x * b.x * c.x + a.y * b.y * c.y + a.z * b.z * c.z;
 }
 
-// static inline vec3f_t vec3f_cross(const vec3f_t a, const vec3f_t b) {
-//     return VEC_INIT(vec3f_t,
-//         a.y * b.z - a.z * b.y,
-//         a.z * b.x - a.x * b.z,
-//         a.x * b.y - a.y * b.x
-//     );
-// }
+__always_inline float vec3f_length_squared(const vec3f_t vec) {
+    return vec.x * vec.x + vec.y * vec.y + vec.z * vec.z;
+}
+
+__always_inline float vec3f_length(const vec3f_t vec) {
+    return sqrtf(vec3f_length(vec));
+}
+
+static inline vec3f_t vec3f_normalize(const vec3f_t vec) {
+    float len = vec3f_length_squared(vec);
+
+    return VEC_INIT(vec3f_t,
+        vec.x / len,
+        vec.y / len,
+        vec.z / len
+    );
+}
 
 vec3f_t vec3f_n_add(const vec3f_arr_t *restrict vec_array, size_t count);
 /**
@@ -377,6 +443,25 @@ static inline float vec4f_dot(const vec4f_t a, const vec4f_t b) {
 
 static inline float vec4f_dot3(const vec4f_t a, const vec4f_t b, const vec4f_t c) {
     return a.x * b.x * c.x + a.y * b.y * c.y + a.z * b.z * c.z + a.w * b.w * c.w;
+}
+
+__always_inline float vec4f_length_squared(const vec4f_t vec) {
+    return vec.x * vec.x + vec.y * vec.y + vec.z * vec.z + vec.w * vec.w;
+}
+
+__always_inline float vec4f_length(const vec4f_t vec) {
+    return sqrtf(vec4f_length_squared(vec));
+}
+
+static inline vec4f_t vec4f_normalize(const vec4f_t vec) {
+    float len = vec4f_length(vec);
+
+    return VEC_INIT(vec4f_t,
+        vec.x / len,
+        vec.y / len,
+        vec.z / len,
+        vec.w / len
+    );
 }
 
 vec4f_t vec4f_n_add(const vec4f_arr_t *restrict vec_array, size_t count);
