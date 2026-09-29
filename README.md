@@ -126,7 +126,7 @@ cpu-rasterizer/
 
 ## License
 
-This project is licend under the 
+This project is licend under the noting
 
 ## Contact
 
