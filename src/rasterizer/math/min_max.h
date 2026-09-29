@@ -65,3 +65,11 @@ __always_inline uint8_t min_u8_inline(const uint8_t a, const uint8_t b) {
 __always_inline uint8_t max_u8_inline(const uint8_t a, const uint8_t b) {
     return (a < b) ? b : a;
 }
+
+__always_inline float min_f_inline(const float a, const float b) {
+    return (a > b) ? b : a;
+}
+
+__always_inline float max_f_inline(const float a, const float b) {
+    return (a < b) ? b : a;
+}

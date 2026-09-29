@@ -18,7 +18,7 @@
 
 #define COLOR(r, g, b) (0xFF000000 | ((r) << 16) | ((g) << 8) | (b))
 
-using color_t = uint32_t;
+typedef uint32_t color_t;
 
 
 static inline const char *reset()   { return "\033[0m"; }

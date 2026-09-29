@@ -1,6 +1,9 @@
 #include "ui.hpp"
 
 void draw(GtkDrawingArea* area, cairo_t* cr, int width, int height, gpointer data) {
+    (void)area;
+    (void)width;
+    (void)height;
     application_t *state = static_cast<application_t*>(data);
 
     cairo_surface_t* surface = cairo_image_surface_create_for_data(
@@ -51,6 +54,7 @@ void draw(GtkDrawingArea* area, cairo_t* cr, int width, int height, gpointer dat
 // }
 
 void activate(GtkApplication *app, gpointer data) {
+    (void)app;
     application_t *state = static_cast<application_t*>(data);
 
     state->window_ = gtk_application_window_new(state->gtk_app_);

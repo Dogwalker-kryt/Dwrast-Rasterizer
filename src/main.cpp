@@ -12,13 +12,15 @@ constexpr size_t frame_buffer_size = sizeof(FB);
 static size_t frame_buffer_size_dyn;
 
 constexpr std::array<const char[16], 16> valid_flags = {
-    "-gtk" , "-ppm", "-width", "-heigth", "-"
+    "-gtk" , "-ppm", "-width", "-height", "-w", "-h"
 };
 
 #define GTK_FLAG valid_flags[0]
 #define PPM_FLAG valid_flags[1]
 #define WIDTH_FLAG valid_flags[2]
 #define HEIGHT_FLAG valid_flags[3]
+#define SMALL_HEIGHT_FLAG valid_flags[5]
+#define SMALL_WIDTH_FLAG valid_flags[4]
 
 __always_inline void set_state_custom_FB_true(application_t *state) {
     state->use_custom_FB_args = true;
@@ -55,7 +57,7 @@ int main(int argc, char** argv) {
                 i++;
             }
 
-            if (strncmp(argv[i], WIDTH_FLAG, 16) == 0) {
+            if (strncmp(argv[i], WIDTH_FLAG, 16) == 0 || strncmp(argv[i], SMALL_WIDTH_FLAG, 16) == 0) {
                 if (i + 1 >= argc) {
                     printf("%s[ERROR]%s no width argument entered\n", RED_ANSI, RESET_ANSI);
                     state.exit_code = -1;
@@ -68,7 +70,7 @@ int main(int argc, char** argv) {
                 i++;
             }
 
-            if (strncmp(argv[i], HEIGHT_FLAG, 16) == 0) {
+            if (strncmp(argv[i], HEIGHT_FLAG, 16) == 0 || strncmp(argv[i], SMALL_HEIGHT_FLAG, 16) == 0) {
                 if (i + 1 >= argc) {
                     printf("%s[ERROR]%s no height argument entered\n", RED_ANSI, RESET_ANSI);
                     state.exit_code = -1;
@@ -81,8 +83,8 @@ int main(int argc, char** argv) {
                 i++;
             }
         }
-        
-    }
+       
+    } 
 
 SKIP_FLAGS:
     if (state.use_custom_FB_args) {
@@ -94,6 +96,17 @@ SKIP_FLAGS:
 
     printf("%s[info]%s allocated %sbytes:%lu%s Framebuffer with %swidth:%lu heigth:%lu%s\n", BOLD_ANSI, RESET_ANSI, BOLD_ANSI, frame_buffer_size_dyn, RESET_ANSI, BOLD_ANSI, state.width, state.heigth, RESET_ANSI);
 
+    dwrast::clear_buf_FB2(state.frame_buffer_, BLACK);
+    draw_triangles(state.frame_buffer_);
+
+    if (state.write_ppm) {
+        const bool ok = dwrast::write_ppm_FB2(state.frame_buffer_, state.file_name);
+        printf("%s[info]%s writing PPM output to %s%s%s -> %s\n",
+               BOLD_ANSI, RESET_ANSI,
+               BOLD_ANSI, state.file_name, RESET_ANSI,
+               ok ? "success" : "failed");
+    }
+
     if (state.use_gtk_) {
         printf("%sInitializing GTK Window...%s\n", BOLD_ANSI, RESET_ANSI);
 
@@ -101,18 +114,12 @@ SKIP_FLAGS:
         printf("%s[info]%s created new gtk application\n", BOLD_ANSI, RESET_ANSI);
 
         g_signal_connect(state.gtk_app_, "activate", G_CALLBACK(activate), &state);
-        int status = g_application_run(G_APPLICATION(state.gtk_app_), 0, NULL);
+        (void)g_application_run(G_APPLICATION(state.gtk_app_), 0, NULL);
         printf("%s[info]%s connected callback and started gtk application\n", BOLD_ANSI, RESET_ANSI);
 
         g_object_unref(state.gtk_app_);
         printf("%s[info]%s unrefed state.gtk_app_\n", BOLD_ANSI, RESET_ANSI);
     }
-
-    // state.frame_buffer_->clear(BLACK);
-
-    // // draw_triangles(state.frame_buffer_);
-
-    // state.frame_buffer_->write_ppm("test.ppm");
 
     EXIT:
         free_state(&state);

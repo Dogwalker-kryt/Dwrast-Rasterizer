@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <immintrin.h>
+#include "../colors.h"
 #include <math.h>
 
 #ifdef __cplusplus
@@ -48,18 +49,26 @@ typedef struct vec4f_arr_t {
     float *w;
 } vec4f_arr_t;
 
-typedef struct rgba_t {
-    uint8_t r;
-    uint8_t g;
-    uint8_t b;
-    uint8_t a;
-} rgba_t;
+// typedef struct rgba_t {
+//     uint8_t r;
+//     uint8_t g;
+//     uint8_t b;
+//     uint8_t a;
+// } rgba_t;
 
 
 /**
- * @brief same as vec3f_t; compatible with vec4f_t Arithmetic functions
+ * @brief same as vec3f_t; compatible with vec3f_t Arithmetic functions
  */
 typedef vec3f_t barycentric_t;
+
+/**
+ * @brief same as pixel_t, but r stands for raw pixel, so its only cordinates and no color value
+ */
+typedef struct rpixel_t {
+    int32_t x;
+    int32_t y;
+} rpixel_t; 
 
 static inline float hsum4(__m128 v) {
     __m128 t = _mm_add_ps(v, _mm_movehl_ps(v, v));
@@ -98,7 +107,7 @@ vec4f_t *vec4f_arr_to_aos(const vec4f_arr_t *restrict arr, vec4f_t *restrict out
 
 // vec2f_t math
 
-static inline vec2f_t vec2f_add(const vec2f_t a, const vec2f_t b) {
+__always_inline vec2f_t vec2f_add(const vec2f_t a, const vec2f_t b) {
     return VEC_INIT(vec2f_t,
         a.x + b.x, 
         a.y + b.y
@@ -161,7 +170,7 @@ static inline vec2f_t vec2f_div3(const vec2f_t a, const vec2f_t b, const vec2f_t
     );
 }
 
-static inline vec2f_t vec2f_sub(const vec2f_t a, const vec2f_t b) {
+__always_inline vec2f_t vec2f_sub(const vec2f_t a, const vec2f_t b) {
     return VEC_INIT(vec2f_t,
         a.x - b.x, 
         a.y - b.y
@@ -194,8 +203,11 @@ static inline float vec2f_cross(const vec2f_t a, const vec2f_t b) {
     return a.x * b.y - a.y * b.x;
 }
 
-static inline float vec2f_edge(const vec2f_t a, const vec2f_t b, const vec2f_t p) {
-    return vec2f_cross(vec2f_sub(b, a), vec2f_sub(p, a));
+/**
+ * @brief calculates if pixel is in or outside of the triangle
+ */
+static inline float vec2f_edge(const vec2f_t a, const vec2f_t b, const rpixel_t pixel) {
+    return vec2f_cross(vec2f_sub(b, a), vec2f_sub(VEC_INIT(vec2f_t, (float)pixel.x, (float)pixel.y), a));
 }
 
 /**
