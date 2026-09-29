@@ -1,118 +1,162 @@
 # CPU Rasterizer
 
-A high-performance CPU rasterizer written in C++17 utilizing SSE2 intrinsics for optimized vectorized operations. 
-This project is designed to run efficiently on x86_64 architecture and is built using CMake 3.20+ and Ninja as the 
-build system.
+A lightweight CPU-based rasterizer built in C++17 for rendering triangles directly to a framebuffer. The project focuses on the fundamentals of software rendering: geometry math, triangle rasterization, pixel writes, and a simple GTK-based preview pipeline.
+
+This project is intentionally small and educational, but it is structured in a way that makes it easy to extend with texturing, perspective-correct interpolation, depth buffering, and more advanced rendering features.
+
+## Why this project
+
+Software rasterization is one of the clearest ways to understand how real-time graphics pipelines work at a low level. This renderer demonstrates the core concepts behind triangle filling, edge testing, framebuffer management, and windowed display output without depending on a full 3D engine or GPU API.
 
 ## Features
 
-- **C++17**: Leveraging modern C++ features for clean and efficient code.
-- **SSE2 Intrinsics**: Utilizing Streaming SIMD Extensions 2 for vectorized operations to enhance performance.
-- **x86_64 Architecture**: Optimized for 64-bit Intel/AMD processors.
-- **CMake Build System**: Facilitates cross-platform build configurations and dependencies management.
-- **Ninja Build Tool**: Fast and lightweight build tool that integrates well with CMake.
+- CPU-side triangle rasterization
+- Custom framebuffer abstraction with pixel writes and clearing
+- Geometry utilities for vectors and triangle math
+- GTK4 window integration for live rendering previews
+- PPM export support for static image output
+- Resolution override via command-line arguments
+- CMake + Ninja build setup for fast local development
+- Optimized with C++17 and platform tuning flags for native x86_64 builds
 
-## Prerequisites
+## Project status
 
-To build and run the CPU Rasterizer, ensure you have the following installed:
+This is an early-stage rendering project and a solid foundation for experimentation and learning. It is suitable for:
 
-- **CMake 3.20+**: Download and install from [CMake's official website](https://cmake.org/download/).
-- **Ninja**: Download and install from [Ninja's official website](https://ninja-build.org/).
-- **C++17 Compiler**: Ensure you have a C++17 compatible compiler installed (e.g., GCC, Clang).
-- **Linux Environment**: The project is designed to run on Linux systems.
+- studying the rasterization pipeline
+- prototyping real-time graphics techniques
+- building a minimal software renderer from scratch
+- learning how a framebuffer and CPU pipeline fit together
 
-## Building the Project
+## Requirements
 
-1. **Clone the Repository**:
+Before building the project, make sure you have the following installed:
 
-   ```bash
-   git clone https://github.com/Dogwalker-kryt/cpu-rasterizer.git
-   cd cpu-rasterizer
-   ```
+- CMake 3.20 or newer
+- Ninja build system
+- A C++17-compatible compiler (GCC or Clang)
+- GTK4 development files
+- pkg-config
+- Linux environment
 
-2. **Create a Build Directory**:
-
-   ```bash
-   mkdir build
-   cd build
-   ```
-
-3. **Configure the Project with CMake**:
-
-   ```bash
-   cmake -G Ninja ..
-   ```
-
-4. **Build the Project**:
-
-   ```bash
-   ninja
-   ```
-
-   This will compile the project and generate the `cpu_rasterizer` executable.
-
-## Running the Rasterizer
-
-After building the project, you can run the rasterizer with:
+On Debian/Ubuntu-based systems, the GTK dependency can usually be installed with:
 
 ```bash
-./cpu_rasterizer
+sudo apt-get install build-essential cmake ninja-build pkg-config libgtk-4-dev
 ```
 
-You can pass command-line arguments to customize the rasterizer's behavior. For example:
+## Build instructions
 
 ```bash
-./cpu_rasterizer --width 800 --height 600 --input model.obj --output output.png
+git clone https://github.com/Dogwalker-kryt/cpu-rasterizer.git
+cd cpu-rasterizer
+cmake -S . -B build -G Ninja
+cmake --build build
 ```
 
-## Project Structure
+This generates the executable at:
 
+```bash
+./build/cpu_rasterizer
 ```
+
+## Usage
+
+The application supports a few simple command-line flags:
+
+- `-gtk` — opens a GTK window and renders in a windowed preview
+- `-ppm <filename>` — writes the framebuffer to a PPM file
+- `-width <value>` — sets the framebuffer width
+- `-heigth <value>` — sets the framebuffer height
+
+Examples:
+
+```bash
+./build/cpu_rasterizer -gtk
+```
+
+```bash
+./build/cpu_rasterizer -ppm test.ppm -width 1280 -heigth 720
+```
+
+```bash
+./build/cpu_rasterizer -gtk -ppm output.ppm -width 800 -heigth 600
+```
+
+## How it works
+
+The renderer is built around a small software pipeline:
+
+1. A framebuffer is allocated for pixel storage.
+2. Geometric primitives are defined as vectors and triangles.
+3. Triangle edges are tested using a standard edge-function approach.
+4. Pixels inside the triangle are filled based on the rasterization rules.
+5. The image is either displayed with GTK or exported as a PPM image.
+
+This is a foundational software rendering structure and is intentionally simple enough to understand and extend.
+
+## Repository layout
+
+```text
 cpu-rasterizer/
 ├── CMakeLists.txt
+├── README.md
 ├── src/
 │   ├── application.hpp
 │   ├── main.cpp
 │   ├── gtkui/
 │   │   ├── ui.cpp
 │   │   └── ui.hpp
-│   └── rasterizer/
-│       ├── Framebuffer/
-│       │   └── Framebuffer.hpp
-│       ├── vector/
-│       │   ├── triangle.h
-│       │   ├── vec.c
-│       │   └── vec.h
-│       ├── colors.h
-│       ├── cpu_rasterizer.hpp
-│       ├── defs.h
-│       └── ...
+│   ├── rasterizer/
+│   │   ├── Framebuffer/
+│   │   │   └── Framebuffer.hpp
+│   │   ├── math/
+│   │   │   └── min_max.h
+│   │   ├── vector/
+│   │   │   ├── triangle.h
+│   │   │   ├── vec.c
+│   │   │   └── vec.h
+│   │   ├── colors.h
+│   │   ├── defs.h
+│   │   ├── dwrast_rasterizer.hpp
+│   │   └── ...
+│   └── renderer/
+│       ├── renderer.cpp
+│       └── renderer.hpp
 ├── build/
 ├── test.ppm
-└── README.md
+└── ...
 ```
+
+## Roadmap
+
+Planned areas for growth include:
+
+- depth buffering
+- perspective-correct interpolation
+- textured triangles
+- camera and view transforms
+- OBJ model loading
+- more feature-rich rendering pipeline organization
+- benchmarking and optimization passes
 
 ## Contributing
 
-Contributions are welcome! Please follow these guidelines:
+Contributions are welcome. If you want to improve the renderer, add features, or fix issues:
 
-1. **Fork the Repository**.
-2. **Create a New Branch**: `git checkout -b feature/your-feature-name`.
-3. **Commit Your Changes**: `git commit -m "Add some feature"`.
-4. **Push to the Branch**: `git push origin feature/your-feature-name`.
-5. **Create a Pull Request**.
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Open a pull request with a clear explanation of the improvement
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This project does not currently include a license file in the repository. If you plan to publish it publicly, add a license before release so users know the terms of use.
 
 ## Contact
 
-For any inquiries or questions, please contact:
-
-- **GitHub Issues**: [Open an Issue](https://github.com/Dogwalker-kryt/Cpu-rasterizer/issues)
+For questions, suggestions, or collaboration inquiries, open an issue in the repository or reach out through the project’s GitHub page.
 
 ---
 
-Thank you for checking out the CPU Rasterizer project! Feel free to reach out if you have any questions or need 
-further assistance.
+A minimal CPU rasterizer is a great way to learn how graphics pipelines work at a low level. This project is a practical starting point for building a more advanced software renderer in the future.
