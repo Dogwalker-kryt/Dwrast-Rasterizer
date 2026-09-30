@@ -1,137 +1,111 @@
-# Dwrast Software Rasterizer
+# DwRast
 
-A lightweight CPU-based rasterizer built in C++17 as a learning and expiremnt project
-This project is intentionally small and educational, but it is structured in a way that makes it easy to extend with texturing, perspective-correct interpolation, depth buffering, and more advanced rendering features.
+**A small CPU software rasterizer built from scratch in C++17.**
 
-## Features
+DwRast is an in-progress graphics project for experimenting with the fundamentals of rasterization: turning triangle geometry into pixels, storing those pixels in a framebuffer, and viewing or exporting the result. It currently renders a simple triangle demo, with a GTK4 preview and binary PPM image output.
 
-- CPU-side rasterization **(WIP)**
-- Custom framebuffer abstraction with pixel writes and clearing
-- Geometry utilities for vectors and triangle math
-- GTK4 window integration for live rendering previews
-- PPM export support for static image output
-- Resolution override via command-line arguments
-- CMake + Ninja build setup
+> **Status: work in progress.** This is an experimental learning project, not a complete 3D renderer or a stable graphics library. Interfaces and features may change.
 
-## Project status
+## Current features
 
-This is an early-stage rendering project and a solid foundation for experimentation and learning. It is suitable for:
+- CPU-side filled-triangle and line rasterization
+- Edge-function point-in-triangle testing, including either triangle winding
+- Framebuffer clipping for triangle fill bounds
+- An AVX2-assisted triangle-fill path with per-pixel handling for partial blocks
+- GTK4 window for displaying the framebuffer
+- PPM (P6) output for inspecting rendered images with common image tools
+- Adjustable framebuffer dimensions from the command line
 
-- looking at it
-- use for experimenting in personal projects
+## Current limitations
 
-## Requirements
+The application currently draws a built-in demo; it does not load models or accept arbitrary scene geometry. A 3D camera/projection pipeline, depth buffer, texture mapping, and a stable public API are not implemented yet. The rasterizer is still being developed, so output and performance may change.
 
-Before building the project, make sure you have the following installed:
+## Build requirements
 
+- Linux (GTK4 is currently required by the build)
 - CMake 3.20 or newer
-- Ninja build system
-- A C++17-compatible compiler (GCC or Clang)
-- GTK4 development files
-- pkg-config
-- Linux environment
+- Ninja
+- A C++17-capable compiler, such as GCC or Clang
+- GTK4 development headers and `pkg-config`
 
-On Debian/Ubuntu-based systems, the GTK dependency can usually be installed with:
+On Debian or Ubuntu, install the build dependencies with:
 
-```bash
-sudo apt-get install build-essential cmake ninja-build pkg-config libgtk-4-dev
+```sh
+sudo apt install build-essential cmake ninja-build pkg-config libgtk-4-dev
 ```
 
-## Build instructions
+## Build
 
-```bash
+```sh
 git clone https://github.com/Dogwalker-kryt/cpu-rasterizer.git
 cd cpu-rasterizer
 cmake -S . -B build -G Ninja
 cmake --build build
 ```
 
-This generates the executable at:
+The executable is `build/dwrast_rasterizer`.
 
-```bash
-./build/cpu_rasterizer
-```
+The project is compiled with `-march=native`, so the resulting binary is tuned for the machine used to build it and may not run on a different CPU. For portable release binaries, revisit the target-specific compiler options in `CMakeLists.txt` and build/test for the intended CPU baseline.
 
-## Usage
+## Run
 
-The application supports a few simple command-line flags:
+Open the GTK preview using the default framebuffer size (1000 × 500):
 
-- `-gtk` — opens a GTK window and renders in a windowed preview
-- `-ppm <filename>` — writes the framebuffer to a PPM file
-- `-width <value>`, `-w <value>` — sets the framebuffer width
-- `-heigth <value>`, `-h <value>` — sets the framebuffer height
-
-Examples:
-
-```bash
+```sh
 ./build/dwrast_rasterizer -gtk
 ```
 
-```bash
-./build/dwrast_rasterizer -ppm test.ppm -width 1280 -height 720
+Render at a custom size and save the framebuffer to a PPM file:
+
+```sh
+./build/dwrast_rasterizer -width 800 -height 600 -ppm output.ppm
 ```
 
-```bash
-./build/dwrast_rasterizer -gtk -ppm output.ppm -width 800 -height 600
+Open the preview and save the same rendered image:
+
+```sh
+./build/dwrast_rasterizer -gtk -w 800 -h 600 -ppm output.ppm
 ```
 
-## How it works
+### Command-line options
 
-The renderer is built around a small software pipeline:
+| Option | Alias | Description |
+| --- | --- | --- |
+| `-gtk` | — | Open the GTK framebuffer preview. |
+| `-ppm <path>` | — | Write the rendered framebuffer to a PPM file. |
+| `-width <pixels>` | `-w <pixels>` | Set the framebuffer width. |
+| `-height <pixels>` | `-h <pixels>` | Set the framebuffer height. |
 
-1. A framebuffer is allocated for pixel storage.
-2. Geometric primitives are defined as vectors and triangles.
-3. Triangle edges are tested using a standard edge-function approach.
-4. Pixels inside the triangle are filled based on the rasterization rules.
-5. The image is either displayed with GTK or exported as a PPM image.
+The GTK preview requires a graphical session. PPM output can be generated without opening a window. The output is a binary P6 pixmap and can be opened or converted with standard image utilities.
 
-This is a foundational software rendering structure and is intentionally simple enough to understand and extend.
-
-## Repository layout
+## Project layout
 
 ```text
-cpu-rasterizer/
-├── CMakeLists.txt
-├── README.md
-├── src/
-│   ├── application.hpp
-│   ├── main.cpp
-│   ├── gtkui/
-│   │   ├── ui.cpp
-│   │   └── ui.hpp
-│   ├── rasterizer/
-│   │   ├── Framebuffer/
-│   │   │   └── Framebuffer.hpp
-│   │   ├── math/
-│   │   │   └── min_max.h
-│   │   ├── vector/
-│   │   │   ├── triangle.h
-│   │   │   ├── vec.c
-│   │   │   └── vec.h
-│   │   ├── colors.h
-│   │   ├── defs.h
-│   │   ├── dwrast_rasterizer.hpp
-│   │   └── ...
-│   └── renderer/
-│       ├── renderer.cpp
-│       └── renderer.hpp
-├── build/
-├── test.ppm
-└── ...
+src/
+├── application.hpp                 # Demo scene and frame rendering
+├── main.cpp                        # CLI parsing and application startup
+├── gtkui/                          # GTK4 framebuffer preview
+└── rasterizer/
+    ├── Framebuffer/                # Framebuffer storage and PPM writing
+    ├── boundingbox/                # Triangle bounds
+    ├── math/                       # Small math helpers
+    ├── vector/                     # Vector and triangle types/utilities
+    └── dwrast_rasterizer.hpp       # Line and triangle rasterization
 ```
 
-## Roadmap
+## Development direction
 
-- basicly a whole and fully functional rasterizer, that makes it useful 
+Potential next steps for the project include color interpolation, a depth buffer, a transform and camera pipeline, mesh loading, and texture mapping. These are ideas for future work—not features available in the current build.
+
+## Contributing
+
+Bug reports, focused fixes, and small feature contributions are welcome. Please open an issue to discuss larger changes before submitting a pull request. Include build steps and a concise description of how a rendering change was tested.
 
 ## License
 
-This project is licend under the noting
+No license file is currently included. Until a license is added, the repository does not grant general permission to use, modify, or redistribute the code. Add a license that matches your intentions before publishing a release.
 
-## Contact
+## Project links
 
-For questions, suggestions, or collaboration inquiries, open an issue in the repository or reach out through the project’s GitHub page.
-
----
-
-A minimal CPU rasterizer is a great way to learn how graphics pipelines work at a low level. This project is a practical starting point for building a more advanced software renderer in the future.
+- [Source repository](https://github.com/Dogwalker-kryt/dwrast-rasterizer)
+- [Report a bug or request a feature](https://github.com/Dogwalker-kryt/dwrast-rasterizer/issues)

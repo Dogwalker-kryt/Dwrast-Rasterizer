@@ -114,7 +114,7 @@ namespace dwrast {
         }
     }
 
-    static inline void fill_triangle_AVX2(dwrast::FB2 *fb, triangle_t *triangle, const color_t color) {
+    static inline void fill_triangle_avx2(dwrast::FB2 *fb, triangle_t *triangle, const color_t color) {
         bounding_box_t bbox = calculate_boundingbox(triangle);
         if (!clip_triangle_bbox(fb, &bbox)) return;
 
@@ -153,7 +153,7 @@ namespace dwrast {
     }
 
     static inline void draw_triangle(dwrast::FB2 *fb, triangle_t *triangle, color_t fill_color, color_t outline_color) {
-        fill_triangle_AVX2(fb, triangle, fill_color);
+        fill_triangle_avx2(fb, triangle, fill_color);
         
         rpixel_t P0 = {
             static_cast<int32_t>(triangle->v0.pos.x),
