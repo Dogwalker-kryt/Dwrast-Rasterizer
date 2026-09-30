@@ -101,10 +101,11 @@ SKIP_FLAGS:
 
     if (state.write_ppm) {
         const bool ok = dwrast::write_ppm_FB2(state.frame_buffer_, state.file_name);
-        printf("%s[info]%s writing PPM output to %s%s%s -> %s\n",
+        printf("%s[info]%s writing PPM output to %s%s%s -> %s%s %s\n",
                BOLD_ANSI, RESET_ANSI,
                BOLD_ANSI, state.file_name, RESET_ANSI,
-               ok ? "success" : "failed");
+               ok ? GREEN_ANSI : RED_ANSI,
+               ok ? "success" : "failed", RESET_ANSI);
     }
 
     if (state.use_gtk_) {

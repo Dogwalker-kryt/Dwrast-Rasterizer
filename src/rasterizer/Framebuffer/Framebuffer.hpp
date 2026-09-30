@@ -12,11 +12,11 @@ namespace dwrast {
  * @brief defines a pixel with x, y and color all stored as uint32_t
  */
 struct pixel_t {
-    size_t x;
-    size_t y;
+    uint32_t x;
+    uint32_t y;
     uint32_t color;
 
-    pixel_t(size_t X, size_t Y, uint32_t Color) : x(X), y(Y), color(Color) {}
+    pixel_t(uint32_t X, uint32_t Y, uint32_t Color) : x(X), y(Y), color(Color) {}
 };
 
 /**
@@ -76,7 +76,7 @@ public:
 
         if (!ppm_file) return false;
 
-        fprintf(ppm_file, "P6\n%zu %zu\n255\n", Width, Height);
+        fprintf(ppm_file, "P6\n%d %d\n255\n", Width, Height);
 
         for (size_t y = 0; y < Height; ++y) {
             for (size_t x = 0; x < Width; ++x) {
@@ -99,8 +99,8 @@ public:
 };
 
 typedef struct FB2 {
-    size_t width;
-    size_t heigth;
+    uint32_t width;
+    uint32_t heigth;
     uint32_t *buffer;
 
 } FB2;
@@ -135,7 +135,7 @@ static inline bool write_ppm_FB2(FB2 *fb, const char *file_name) {
     
     if (!ppm_f) return 0;
     
-    fprintf(ppm_f, "P6\n%zu %zu\n255\n", fb->width, fb->heigth);
+    fprintf(ppm_f, "P6\n%u %u\n255\n", fb->width, fb->heigth);
 
     for (size_t y = 0; y < fb->heigth; ++y) {
         for (size_t x = 0; x < fb->width; ++x) {
@@ -156,15 +156,19 @@ static inline bool write_ppm_FB2(FB2 *fb, const char *file_name) {
     return true;
 }
 
-__always_inline void set_pixel_FB2(FB2 *fb, const size_t x_, const size_t y_, const uint32_t color_) noexcept {
+__always_inline void set_pixel_FB2(FB2 *fb, const uint32_t x_, const uint32_t y_, const uint32_t color_) {
     fb->buffer[y_ * fb->width + x_] = color_;
 }
 
-__always_inline uint32_t get_pixel_color_FB2(FB2 *fb, const size_t x_, const size_t y_) noexcept {
+__always_inline void set_pixel_pointer_FB2(uint32_t *pixel, const uint32_t color) {
+    *pixel = color;
+}
+
+__always_inline uint32_t get_pixel_color_FB2(FB2 *fb, const uint32_t x_, const uint32_t y_) {
     return fb->buffer[y_ * fb->width + x_];
 }
 
-__always_inline pixel_t get_pixel_FB2(FB2 *fb, const size_t x_, const size_t y_) noexcept {
+__always_inline pixel_t get_pixel_FB2(FB2 *fb, const uint32_t x_, const uint32_t y_) {
     return {x_, y_, fb->buffer[y_ * fb->width + x_]};
 }
 

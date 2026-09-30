@@ -49,13 +49,6 @@ typedef struct vec4f_arr_t {
     float *w;
 } vec4f_arr_t;
 
-// typedef struct rgba_t {
-//     uint8_t r;
-//     uint8_t g;
-//     uint8_t b;
-//     uint8_t a;
-// } rgba_t;
-
 
 /**
  * @brief same as vec3f_t; compatible with vec3f_t Arithmetic functions

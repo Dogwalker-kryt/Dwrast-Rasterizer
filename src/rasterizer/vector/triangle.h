@@ -138,14 +138,14 @@ __always_inline triangle_t create_triangle_from_vertex(const vertex_t v0, const 
     );
 }
 
-static inline bool triangle_contains_pixel(triangle_t *triangle, const int32_t x, const int32_t y) {
+static inline bool triangle_contains_pixel(triangle_t *triangle, const rpixel_t pixel) {
     vec2f_t a = { triangle->v0.pos.x, triangle->v0.pos.y };
     vec2f_t b = { triangle->v1.pos.x, triangle->v1.pos.y };
     vec2f_t c = { triangle->v2.pos.x, triangle->v2.pos.y };
 
-    const float e1 = vec2f_edge(a, b, VEC_INIT(rpixel_t, x, y));
-    const float e2 = vec2f_edge(b, c, VEC_INIT(rpixel_t, x, y));
-    const float e3 = vec2f_edge(c, a, VEC_INIT(rpixel_t, x, y));
+    const float e1 = vec2f_edge(a, b, pixel);
+    const float e2 = vec2f_edge(b, c, pixel);
+    const float e3 = vec2f_edge(c, a, pixel);
     const float area = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
 
     if (area >= 0.0f) {

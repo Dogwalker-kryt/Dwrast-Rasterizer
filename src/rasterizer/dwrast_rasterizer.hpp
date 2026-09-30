@@ -7,8 +7,22 @@
 #include "defs.h"
 #include "boundingbox/boundingbox.h"
 #include "math/absolute.h"
+#include <algorithm>
+#include <climits>
 
 namespace dwrast {
+
+    static inline bool clip_triangle_bbox(const dwrast::FB2 *fb, bounding_box_t *bbox) {
+        if (!fb || !fb->buffer || fb->width == 0 || fb->heigth == 0) return false;
+
+        const int32_t max_x = static_cast<int32_t>(std::min<uint32_t>(fb->width - 1, INT32_MAX - 1));
+        const int32_t max_y = static_cast<int32_t>(std::min<uint32_t>(fb->heigth - 1, INT32_MAX - 1));
+        bbox->min_x = std::max<int32_t>(bbox->min_x, 0);
+        bbox->min_y = std::max<int32_t>(bbox->min_y, 0);
+        bbox->max_x = std::min<int32_t>(bbox->max_x, max_x);
+        bbox->max_y = std::min<int32_t>(bbox->max_y, max_y);
+        return bbox->min_x <= bbox->max_x && bbox->min_y <= bbox->max_y;
+    }
 
     /**
      * @brief computes the 2D screen coordinates of a vertex after perspective division and viewport transformation.
@@ -60,8 +74,11 @@ namespace dwrast {
         int32_t err = x_distance - y_distance;
 
         while (true) {
-            if (P0.x >= 0 && P0.y >= 0 && static_cast<size_t>(P0.x) < fb->width && static_cast<size_t>(P0.y) < fb->heigth) {
-                fb->buffer[P0.y * fb->width + P0.x] = color;
+            if (P0.x >= 0 && P0.y >= 0 &&
+                static_cast<uint32_t>(P0.x) < fb->width &&
+                static_cast<uint32_t>(P0.y) < fb->heigth) {
+                const size_t index = static_cast<size_t>(P0.y) * fb->width + static_cast<size_t>(P0.x);
+                set_pixel_pointer_FB2(&fb->buffer[index], color);
             }
 
             if (P0.x == P1.x && P0.y == P1.y) break;
@@ -85,19 +102,58 @@ namespace dwrast {
      * @param color the color
      */
     static inline void fill_triangle(dwrast::FB2 *fb, triangle_t *triangle, const color_t color) {
-        const bounding_box_t bbox = calculate_boundingbox(triangle);
+        bounding_box_t bbox = calculate_boundingbox(triangle);
+        if (!clip_triangle_bbox(fb, &bbox)) return;
 
         for (int32_t y = bbox.min_y; y <= bbox.max_y; ++y) {
             for (int32_t x = bbox.min_x; x <= bbox.max_x; ++x) {
-                if (triangle_contains_pixel(triangle, x, y)) {
-                    set_pixel_FB2(fb, x, y, color);
+                if (triangle_contains_pixel(triangle, {x, y})) {
+                    set_pixel_FB2(fb, static_cast<uint32_t>(x), static_cast<uint32_t>(y), color);
+                }
+            }
+        }
+    }
+
+    static inline void fill_triangle_AVX2(dwrast::FB2 *fb, triangle_t *triangle, const color_t color) {
+        bounding_box_t bbox = calculate_boundingbox(triangle);
+        if (!clip_triangle_bbox(fb, &bbox)) return;
+
+        const __m256i color_vec = _mm256_set1_epi32(color);
+        int32_t x = bbox.min_x;
+        for (int32_t y = bbox.min_y; y <= bbox.max_y; ++y) {
+            x = bbox.min_x;
+            for (; bbox.max_x - x >= 7; x += 8) {
+                bool all_inside = true;
+                for (int32_t lane = 0; lane < 8; ++lane) {
+                    if (!triangle_contains_pixel(triangle, {x + lane, y})) {
+                        all_inside = false;
+                        break;
+                    }
+                }
+
+                uint32_t *pixels = &fb->buffer[static_cast<size_t>(y) * fb->width + static_cast<uint32_t>(x)];
+                if (all_inside) {
+                    _mm256_storeu_si256(reinterpret_cast<__m256i*>(pixels), color_vec);
+                } else {
+                    for (int32_t lane = 0; lane < 8; ++lane) {
+                        if (triangle_contains_pixel(triangle, {x + lane, y})) {
+                            pixels[lane] = color;
+                        }
+                    }
+                }
+            }
+
+            for (; x <= bbox.max_x; ++x) {
+                if (triangle_contains_pixel(triangle, {x, y})) {
+                    const size_t index = static_cast<size_t>(y) * fb->width + static_cast<uint32_t>(x);
+                    set_pixel_pointer_FB2(&fb->buffer[index], color);
                 }
             }
         }
     }
 
     static inline void draw_triangle(dwrast::FB2 *fb, triangle_t *triangle, color_t fill_color, color_t outline_color) {
-        fill_triangle(fb, triangle, fill_color);
+        fill_triangle_AVX2(fb, triangle, fill_color);
         
         rpixel_t P0 = {
             static_cast<int32_t>(triangle->v0.pos.x),

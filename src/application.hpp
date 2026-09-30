@@ -2,6 +2,8 @@
 
 #include "rasterizer/dwrast_rasterizer.hpp"
 #include <gtk/gtk.h>
+#include <chrono>
+#include <iostream>
 
 struct application_t {
     dwrast::FB2 *frame_buffer_ = nullptr;
@@ -24,7 +26,10 @@ struct application_t {
 };
 
 inline void free_state(application_t *state) {
-    delete state->frame_buffer_;
+    if (state->frame_buffer_) {
+        dwrast::destroy_FB2(state->frame_buffer_);
+        state->frame_buffer_ = nullptr;
+    }
 }
 
 
@@ -32,7 +37,7 @@ inline void draw_triangles(dwrast::FB2 *fb) {
     dwrast::clear_buf_FB2(fb, BLACK);
 
     vertex_t v0 = {
-        {250.0f, 80.0f, 0.0f, 1.0f},
+        {50.0f, 80.0f, 0.0f, 1.0f},
         WHITE
     };
 
@@ -46,8 +51,19 @@ inline void draw_triangles(dwrast::FB2 *fb) {
         WHITE
     };
 
-    triangle_t triangle = create_triangle_from_vertex(v0, v1, v2);
-    dwrast::draw_triangle(fb, &triangle, BLUE, BLACK);
+    triangle_t triangle = { v0, v1, v2 };
+
+    // auto start = std::chrono::steady_clock::now();
+
+    // for (int i = 0; i < 1000; ++i) {
+        dwrast::draw_triangle(fb, &triangle, BLUE, BLACK);
+    // }
+
+    // auto end = std::chrono::steady_clock::now();
+
+    // double seconds = std::chrono::duration<double>(end - start).count();
+
+    // std::cout << "Time: " << seconds << " s\n";
 }
 
 inline void render_frame(application_t *state) {
