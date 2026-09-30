@@ -94,19 +94,8 @@ SKIP_FLAGS:
         state.frame_buffer_ = dwrast::create_FB2(WIDTH, HEIGTH);
     }
 
-    printf("%s[info]%s allocated %sbytes:%lu%s Framebuffer with %swidth:%lu heigth:%lu%s\n", BOLD_ANSI, RESET_ANSI, BOLD_ANSI, frame_buffer_size_dyn, RESET_ANSI, BOLD_ANSI, state.width, state.heigth, RESET_ANSI);
-
     dwrast::clear_buf_FB2(state.frame_buffer_, BLACK);
-    draw_triangles(state.frame_buffer_);
-
-    if (state.write_ppm) {
-        const bool ok = dwrast::write_ppm_FB2(state.frame_buffer_, state.file_name);
-        printf("%s[info]%s writing PPM output to %s%s%s -> %s%s %s\n",
-               BOLD_ANSI, RESET_ANSI,
-               BOLD_ANSI, state.file_name, RESET_ANSI,
-               ok ? GREEN_ANSI : RED_ANSI,
-               ok ? "success" : "failed", RESET_ANSI);
-    }
+    printf("%s[info]%s allocated %sbytes:%lu%s Framebuffer with %swidth:%lu heigth:%lu%s\n", BOLD_ANSI, RESET_ANSI, BOLD_ANSI, frame_buffer_size_dyn, RESET_ANSI, BOLD_ANSI, state.width, state.heigth, RESET_ANSI);
 
     if (state.use_gtk_) {
         printf("%sInitializing GTK Window...%s\n", BOLD_ANSI, RESET_ANSI);
@@ -120,6 +109,18 @@ SKIP_FLAGS:
 
         g_object_unref(state.gtk_app_);
         printf("%s[info]%s unrefed state.gtk_app_\n", BOLD_ANSI, RESET_ANSI);
+    } else {
+        // rasterisation in no gtk mode
+        draw_triangles(state.frame_buffer_);
+    }
+
+    if (state.write_ppm) {
+        const bool ok = dwrast::write_ppm_FB2(state.frame_buffer_, state.file_name);
+        printf("%s[info]%s writing PPM output to %s%s%s -> %s%s %s\n",
+               BOLD_ANSI, RESET_ANSI,
+               BOLD_ANSI, state.file_name, RESET_ANSI,
+               ok ? GREEN_ANSI : RED_ANSI,
+               ok ? "success" : "failed", RESET_ANSI);
     }
 
     EXIT:
