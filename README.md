@@ -103,7 +103,7 @@ Bug reports, focused fixes, and small feature contributions are welcome. Please 
 
 ## License
 
-No license file is currently included. Until a license is added, the repository does not grant general permission to use, modify, or redistribute the code. Add a license that matches your intentions before publishing a release.
+It's licensed under the GPL-3.0 licence
 
 ## Project links
 
