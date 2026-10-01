@@ -330,7 +330,7 @@ __always_inline float vec3f_length_squared(const vec3f_t vec) {
 }
 
 __always_inline float vec3f_length(const vec3f_t vec) {
-    return sqrtf(vec3f_length(vec));
+    return sqrtf(vec3f_length_squared(vec));
 }
 
 static inline vec3f_t vec3f_normalize(const vec3f_t vec) {
