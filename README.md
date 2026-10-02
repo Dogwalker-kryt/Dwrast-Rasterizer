@@ -76,6 +76,8 @@ Open the preview and save the same rendered image:
 | `-ppm <path>` | — | Write the rendered framebuffer to a PPM file. |
 | `-width <pixels>` | `-w <pixels>` | Set the framebuffer width. |
 | `-height <pixels>` | `-h <pixels>` | Set the framebuffer height. |
+| `-depth` | `-z` | Avticate the depth-buffer for the current session |
+| `-obj <path>` | — | Take a .obj file as input for rasterisation |
 
 The GTK preview requires a graphical session. PPM output can be generated without opening a window. The output is a binary P6 pixmap and can be opened or converted with standard image utilities.
 

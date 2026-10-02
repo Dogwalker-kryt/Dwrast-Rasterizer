@@ -10,6 +10,7 @@
 
 struct application_t {
     dwrast::FB2 *frame_buffer_ = nullptr;
+    dwrast::DB *depth_buffer = nullptr;
 
     GtkApplication *gtk_app_ = nullptr;
     GtkWidget *window_ = nullptr;
@@ -17,8 +18,8 @@ struct application_t {
 
     bool use_gtk_ = false;
     bool write_ppm = false;
-    char file_name[64];
-    bool use_custom_FB_args;
+    char ppm_file_name[64];
+    bool use_depth_buffer = false;
     uint64_t width = WIDTH;
     uint64_t heigth = HEIGTH;
 
@@ -112,9 +113,9 @@ inline void draw_triangles(dwrast::FB2 *fb) {
 
     auto start = std::chrono::steady_clock::now();
 
-    for (int i = 0; i < 1000; ++i) {
+    // for (int i = 0; i < 1000; ++i) {
         dwrast::draw_triangle(fb, &triangle, BLUE, BLACK);
-    }
+    // }
 
     auto end = std::chrono::steady_clock::now();
 
@@ -129,7 +130,11 @@ inline void draw_triangles(dwrast::FB2 *fb) {
 //     draw_random_primitives(fb);
 // }
 
-inline void render_frame(application_t *state) {
+inline void *rasterize_frame(application_t *state) {
+    // here comes
+}
+
+inline void render_frame_gtk(application_t *state) {
     draw_triangles(state->frame_buffer_);
     gtk_widget_queue_draw(state->window_);
 }

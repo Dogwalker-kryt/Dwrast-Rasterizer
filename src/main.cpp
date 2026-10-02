@@ -8,11 +8,8 @@
 
 using namespace dwrast;
 
-constexpr size_t frame_buffer_size = sizeof(FB);
-static size_t frame_buffer_size_dyn;
-
-constexpr std::array<const char[16], 16> valid_flags = {
-    "-gtk" , "-ppm", "-width", "-height", "-w", "-h"
+constexpr const char* valid_flags[16] = {
+    "-gtk" , "-ppm", "-width", "-height", "-w", "-h", "-obj", "-depth", "-z"
 };
 
 #define GTK_FLAG valid_flags[0]
@@ -21,16 +18,14 @@ constexpr std::array<const char[16], 16> valid_flags = {
 #define HEIGHT_FLAG valid_flags[3]
 #define SMALL_HEIGHT_FLAG valid_flags[5]
 #define SMALL_WIDTH_FLAG valid_flags[4]
-
-__always_inline void set_state_custom_FB_true(application_t *state) {
-    state->use_custom_FB_args = true;
-}
-
+#define OBJ_FILE_FLAG valid_flags[6]
+#define DEPTH_BUFFER_FLAG valid_flags[7]
+#define SMALL_DEPTH_BUFFER_FLAG valid_flags[8]
 
 int main(int argc, char** argv) {
     printf("%sInitializing Rasterizer...%s\n", BOLD_ANSI, RESET_ANSI);
     application_t state{};
-    frame_buffer_size_dyn = frame_buffer_size;
+    size_t frame_buffer_size_dyn;
 
     // cli flags
     {
@@ -52,8 +47,8 @@ int main(int argc, char** argv) {
                 }
 
                 state.write_ppm = true;
-                memcpy(&state.file_name, argv[i + 1], sizeof(state.file_name));
-                state.file_name[sizeof(state.file_name) - 1] = '\0';
+                memcpy(&state.ppm_file_name, argv[i + 1], sizeof(state.ppm_file_name));
+                state.ppm_file_name[sizeof(state.ppm_file_name) - 1] = '\0';
                 i++;
             }
 
@@ -64,7 +59,6 @@ int main(int argc, char** argv) {
                     goto EXIT;
                 }
 
-                set_state_custom_FB_true(&state);
                 char *endptr = nullptr;
                 state.width = strtoull(argv[i + 1], &endptr, 10);
                 i++;
@@ -77,25 +71,37 @@ int main(int argc, char** argv) {
                     goto EXIT;
                 }
 
-                set_state_custom_FB_true(&state);
                 char *endptr = nullptr;
                 state.heigth = strtoull(argv[i + 1], &endptr, 10);
                 i++;
+            }
+
+            if (strncmp(argv[i], OBJ_FILE_FLAG, 16) == 0) {
+                if (i + 1 >= argc) {
+                    printf("%s[ERROR]%s no obj file path entered\n", RED_ANSI, RESET_ANSI);
+                    state.exit_code = -1;
+                    goto EXIT;
+                }
+            }
+
+            if (strncmp(argv[i], DEPTH_BUFFER_FLAG, 16) == 0 || strncmp(argv[i], SMALL_DEPTH_BUFFER_FLAG, 16) == 0) {
+                state.use_depth_buffer = true;
             }
         }
        
     } 
 
 SKIP_FLAGS:
-    if (state.use_custom_FB_args) {
-        state.frame_buffer_ = dwrast::create_FB2(state.width, state.heigth);
-        frame_buffer_size_dyn = state.width * state.heigth;
-    } else {
-        state.frame_buffer_ = dwrast::create_FB2(WIDTH, HEIGTH);
-    }
+    state.frame_buffer_ = dwrast::create_FB2(state.width, state.heigth);
+    frame_buffer_size_dyn = state.width * state.heigth;
 
     dwrast::clear_buf_FB2(state.frame_buffer_, BLACK);
     printf("%s[info]%s allocated %sbytes:%lu%s Framebuffer with %swidth:%lu heigth:%lu%s\n", BOLD_ANSI, RESET_ANSI, BOLD_ANSI, frame_buffer_size_dyn, RESET_ANSI, BOLD_ANSI, state.width, state.heigth, RESET_ANSI);
+
+    if (state.use_depth_buffer) {
+        state.depth_buffer = dwrast::create_DB(state.width, state.heigth);
+        printf("%s[info]%s allocated DB with same params as FB2\n", BOLD_ANSI, RESET_ANSI);
+    }
 
     if (state.use_gtk_) {
         printf("%sInitializing GTK Window...%s\n", BOLD_ANSI, RESET_ANSI);
@@ -115,10 +121,10 @@ SKIP_FLAGS:
     }
 
     if (state.write_ppm) {
-        const bool ok = dwrast::write_ppm_FB2(state.frame_buffer_, state.file_name);
+        const bool ok = dwrast::write_ppm_FB2(state.frame_buffer_, state.ppm_file_name);
         printf("%s[info]%s writing PPM output to %s%s%s -> %s%s %s\n",
                BOLD_ANSI, RESET_ANSI,
-               BOLD_ANSI, state.file_name, RESET_ANSI,
+               BOLD_ANSI, state.ppm_file_name, RESET_ANSI,
                ok ? GREEN_ANSI : RED_ANSI,
                ok ? "success" : "failed", RESET_ANSI);
     }

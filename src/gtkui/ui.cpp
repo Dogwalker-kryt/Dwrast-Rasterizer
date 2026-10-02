@@ -71,5 +71,5 @@ void activate(GtkApplication *app, gpointer data) {
     gtk_window_set_child(GTK_WINDOW(state->window_), state->area_);
     gtk_window_present(GTK_WINDOW(state->window_));
 
-    render_frame(state);
+    render_frame_gtk(state);
 }
