@@ -7,8 +7,11 @@
 #include "defs.h"
 #include "boundingbox/boundingbox.h"
 #include "math/absolute.h"
+#include "simd/triangle_avx2.hpp"
 #include <algorithm>
 #include <climits>
+#include <cstdint>
+#include <cstdlib>
 
 namespace dwrast {
 
@@ -67,30 +70,35 @@ namespace dwrast {
      * @brief draws line between 2 points to fb
      */
     static inline void draw_line(dwrast::FB2 *fb, rpixel_t P0, rpixel_t P1, color_t color) {
-        int32_t x_distance = absolute_f(P1.x - P0.x);
-        int32_t y_distance = absolute_f(P1.y - P0.y);
-        int8_t x_direction = (P0.x < P1.x) ? 1 : -1;
-        int8_t y_direction = (P0.y < P1.y) ? 1 : -1;
-        int32_t err = x_distance - y_distance;
+        if (!fb || !fb->buffer) return;
+
+        int64_t x = P0.x;
+        int64_t y = P0.y;
+        const int64_t x1 = P1.x;
+        const int64_t y1 = P1.y;
+        const int64_t dx = std::abs(x1 - x);
+        const int64_t dy = std::abs(y1 - y);
+        const int64_t sx = (x < x1) ? 1 : -1;
+        const int64_t sy = (y < y1) ? 1 : -1;
+        int64_t error = dx - dy;
 
         while (true) {
-            if (P0.x >= 0 && P0.y >= 0 &&
-                static_cast<uint32_t>(P0.x) < fb->width &&
-                static_cast<uint32_t>(P0.y) < fb->heigth) {
-                const size_t index = static_cast<size_t>(P0.y) * fb->width + static_cast<size_t>(P0.x);
+            if (x >= 0 && y >= 0 && static_cast<uint64_t>(x) < fb->width &&
+                static_cast<uint64_t>(y) < fb->heigth) {
+                const size_t index = static_cast<size_t>(y) * fb->width + static_cast<size_t>(x);
                 set_pixel_pointer_FB2(&fb->buffer[index], color);
             }
 
-            if (P0.x == P1.x && P0.y == P1.y) break;
+            if (x == x1 && y == y1) break;
 
-            int e2 = 2 * err;
-            if (e2 > -y_distance) {
-                err -= y_distance;
-                P0.x += x_direction;
+            const int64_t twice_error = 2 * error;
+            if (twice_error > -dy) {
+                error -= dy;
+                x += sx;
             }
-            if (e2 < x_distance) {
-                err += x_distance;
-                P0.y += y_direction;
+            if (twice_error < dx) {
+                error += dx;
+                y += sy;
             }
         }
     }
@@ -102,6 +110,7 @@ namespace dwrast {
      * @param color the color
      */
     static inline void fill_triangle(dwrast::FB2 *fb, triangle_t *triangle, const color_t color) {
+        if (!fb || !triangle || triangle_is_degen(triangle)) return;
         bounding_box_t bbox = calculate_boundingbox(triangle);
         if (!clip_triangle_bbox(fb, &bbox)) return;
 
@@ -114,45 +123,22 @@ namespace dwrast {
         }
     }
 
+    /**
+     * @brief fills all pixels in triangle with color using AVX2
+     * @param fb framebuffer
+     * @param triangle is not checkd internaly, must be checked externaly
+     * @param color the color
+     * @warning every parameter must be validated by the caller, the function it self doesnt check them
+     */
     static inline void fill_triangle_avx2(dwrast::FB2 *fb, triangle_t *triangle, const color_t color) {
         bounding_box_t bbox = calculate_boundingbox(triangle);
         if (!clip_triangle_bbox(fb, &bbox)) return;
 
-        const __m256i color_vec = _mm256_set1_epi32(color);
-        int32_t x = bbox.min_x;
-        for (int32_t y = bbox.min_y; y <= bbox.max_y; ++y) {
-            x = bbox.min_x;
-            for (; bbox.max_x - x >= 7; x += 8) {
-                bool all_inside = true;
-                for (int32_t lane = 0; lane < 8; ++lane) {
-                    if (!triangle_contains_pixel(triangle, {x + lane, y})) {
-                        all_inside = false;
-                        break;
-                    }
-                }
-
-                uint32_t *pixels = &fb->buffer[static_cast<size_t>(y) * fb->width + static_cast<uint32_t>(x)];
-                if (all_inside) {
-                    _mm256_storeu_si256(reinterpret_cast<__m256i*>(pixels), color_vec);
-                } else {
-                    for (int32_t lane = 0; lane < 8; ++lane) {
-                        if (triangle_contains_pixel(triangle, {x + lane, y})) {
-                            pixels[lane] = color;
-                        }
-                    }
-                }
-            }
-
-            for (; x <= bbox.max_x; ++x) {
-                if (triangle_contains_pixel(triangle, {x, y})) {
-                    const size_t index = static_cast<size_t>(y) * fb->width + static_cast<uint32_t>(x);
-                    set_pixel_pointer_FB2(&fb->buffer[index], color);
-                }
-            }
-        }
+        simd::fill_triangle_8x8(fb, triangle, bbox, color);
     }
 
     static inline void draw_triangle(dwrast::FB2 *fb, triangle_t *triangle, color_t fill_color, color_t outline_color) {
+        if (!fb || !fb->buffer || !triangle) return;
         fill_triangle_avx2(fb, triangle, fill_color);
         
         rpixel_t P0 = {

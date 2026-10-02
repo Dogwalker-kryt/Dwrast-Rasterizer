@@ -33,4 +33,6 @@ target_compile_options(dwrast_rasterizer
         -O3
         -march=native
         -flto
+        -mavx2
+        -mfma
 )

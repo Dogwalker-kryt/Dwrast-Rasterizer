@@ -27,6 +27,7 @@ The application currently draws a built-in demo; it does not load models or acce
 - Ninja
 - A C++17-capable compiler, such as GCC or Clang
 - GTK4 development headers and `pkg-config`
+- A CPU with AVX2 and FMA3 support
 
 On Debian or Ubuntu, install the build dependencies with:
 
@@ -45,7 +46,7 @@ cmake --build build
 
 The executable is `build/dwrast_rasterizer`.
 
-The project is compiled with `-march=native`, so the resulting binary is tuned for the machine used to build it and may not run on a different CPU. For portable release binaries, revisit the target-specific compiler options in `CMakeLists.txt` and build/test for the intended CPU baseline.
+The project is compiled with AVX2, FMA3, and `-march=native`; the resulting binary requires AVX2/FMA3 and is tuned for the machine used to build it. It may not run on older or different CPUs. For portable release binaries, add runtime CPU-feature dispatch or build for a documented CPU baseline in `CMakeLists.txt`.
 
 ## Run
 

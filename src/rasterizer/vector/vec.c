@@ -1,5 +1,19 @@
 #include "vec.h"
 
+static inline float hsum8_ps(const __m256 values) {
+    const __m256 pairs = _mm256_hadd_ps(values, values);
+    const __m256 quads = _mm256_hadd_ps(pairs, pairs);
+    const __m256 total = _mm256_add_ps(quads, _mm256_permute2f128_ps(quads, quads, 0x01));
+    return _mm_cvtss_f32(_mm256_castps256_ps128(total));
+}
+
+static inline float hprod8_ps(const __m256 values) {
+    const __m256 pairs = _mm256_mul_ps(values, _mm256_permute_ps(values, _MM_SHUFFLE(2, 3, 0, 1)));
+    const __m256 quads = _mm256_mul_ps(pairs, _mm256_permute_ps(pairs, _MM_SHUFFLE(1, 0, 3, 2)));
+    const __m256 total = _mm256_mul_ps(quads, _mm256_permute2f128_ps(quads, quads, 0x01));
+    return _mm_cvtss_f32(_mm256_castps256_ps128(total));
+}
+
 inline vec2f_t from_vec2_arr(const vec2f_arr_t *arr, const size_t n) {
     return (vec2f_t){arr->x[n], arr->y[n]};
 }
@@ -13,794 +27,292 @@ inline vec4f_t from_vec4_arr(const vec4f_arr_t *arr, size_t n) {
 }
 
 vec2f_t *vec2f_arr_to_aos(const vec2f_arr_t *restrict arr, vec2f_t *restrict out, size_t count) {
-    for (size_t i = 0; i < count; ++i) {
-        out[i] = (vec2f_t){arr->x[i], arr->y[i]};
-    }
+    for (size_t i = 0; i < count; ++i) out[i] = (vec2f_t){arr->x[i], arr->y[i]};
     return out;
 }
 
 vec3f_t *vec3f_arr_to_aos(const vec3f_arr_t *restrict arr, vec3f_t *restrict out, size_t count) {
-    for (size_t i = 0; i < count; ++i) {
-        out[i] = (vec3f_t){arr->x[i], arr->y[i], arr->z[i]};
-    }
+    for (size_t i = 0; i < count; ++i) out[i] = (vec3f_t){arr->x[i], arr->y[i], arr->z[i]};
     return out;
 }
 
 vec4f_t *vec4f_arr_to_aos(const vec4f_arr_t *restrict arr, vec4f_t *restrict out, size_t count) {
-    for (size_t i = 0; i < count; ++i) {
-        out[i] = (vec4f_t){arr->x[i], arr->y[i], arr->z[i], arr->w[i]};
-    }
+    for (size_t i = 0; i < count; ++i) out[i] = (vec4f_t){arr->x[i], arr->y[i], arr->z[i], arr->w[i]};
     return out;
 }
 
-// ----------------------------------------------------------------------------------------------------------------------------
-// vec2
-
-vec2f_t vec2f_n_add(const vec2f_arr_t *restrict vec_array, size_t count) {
-    size_t i = 0;
-    __m128 sumx = _mm_setzero_ps();
-    __m128 sumy = _mm_setzero_ps();
-
-    for (; i + 4 <= count; i += 4) {
-        sumx = _mm_add_ps(sumx, _mm_loadu_ps(&vec_array->x[i]));
-        sumy = _mm_add_ps(sumy, _mm_loadu_ps(&vec_array->y[i]));
-    }
-
-    vec2f_t result = {
-        hsum4_ps(sumx),
-        hsum4_ps(sumy)
-    };
-
-    for (; i < count; ++i) {
-        result.x += vec_array->x[i];
-        result.y += vec_array->y[i];
-    }
-
-    return result;
+#define DEFINE_REDUCTIONS_2D(PREFIX, TYPE, ARRAY, X, Y) \
+TYPE PREFIX##_n_add(const ARRAY *restrict values, size_t count) { \
+    __m256 sx = _mm256_setzero_ps(), sy = _mm256_setzero_ps(); \
+    size_t i = 0; \
+    for (; i + 8 <= count; i += 8) { \
+        sx = _mm256_add_ps(sx, _mm256_loadu_ps(values->X + i)); \
+        sy = _mm256_add_ps(sy, _mm256_loadu_ps(values->Y + i)); \
+    } \
+    float x = hsum8_ps(sx), y = hsum8_ps(sy); \
+    for (; i < count; ++i) { x += values->X[i]; y += values->Y[i]; } \
+    return (TYPE){x, y}; \
+} \
+TYPE PREFIX##_n_sub(const ARRAY *restrict values, size_t count) { \
+    if (count == 0) return (TYPE){0}; \
+    const float x0 = values->X[0], y0 = values->Y[0]; \
+    __m256 sx = _mm256_setzero_ps(), sy = _mm256_setzero_ps(); \
+    size_t i = 1; \
+    for (; i + 8 <= count; i += 8) { \
+        sx = _mm256_add_ps(sx, _mm256_loadu_ps(values->X + i)); \
+        sy = _mm256_add_ps(sy, _mm256_loadu_ps(values->Y + i)); \
+    } \
+    float x = hsum8_ps(sx), y = hsum8_ps(sy); \
+    for (; i < count; ++i) { x += values->X[i]; y += values->Y[i]; } \
+    return (TYPE){x0 - x, y0 - y}; \
+} \
+TYPE PREFIX##_n_mul(const ARRAY *restrict values, size_t count) { \
+    __m256 px = _mm256_set1_ps(1.0f), py = _mm256_set1_ps(1.0f); \
+    size_t i = 0; \
+    for (; i + 8 <= count; i += 8) { \
+        px = _mm256_mul_ps(px, _mm256_loadu_ps(values->X + i)); \
+        py = _mm256_mul_ps(py, _mm256_loadu_ps(values->Y + i)); \
+    } \
+    float x = hprod8_ps(px), y = hprod8_ps(py); \
+    for (; i < count; ++i) { x *= values->X[i]; y *= values->Y[i]; } \
+    return (TYPE){x, y}; \
+} \
+TYPE PREFIX##_n_div(const ARRAY *restrict values, size_t count) { \
+    if (count == 0) return (TYPE){0}; \
+    const float x0 = values->X[0], y0 = values->Y[0]; \
+    __m256 px = _mm256_set1_ps(1.0f), py = _mm256_set1_ps(1.0f); \
+    size_t i = 1; \
+    for (; i + 8 <= count; i += 8) { \
+        px = _mm256_mul_ps(px, _mm256_loadu_ps(values->X + i)); \
+        py = _mm256_mul_ps(py, _mm256_loadu_ps(values->Y + i)); \
+    } \
+    float x = hprod8_ps(px), y = hprod8_ps(py); \
+    for (; i < count; ++i) { x *= values->X[i]; y *= values->Y[i]; } \
+    return (TYPE){x0 / x, y0 / y}; \
 }
 
-vec2f_t vec2f_n_sub(const vec2f_arr_t *restrict vec_array, size_t count) {
-    const float x0 = vec_array->x[0];
-    const float y0 = vec_array->y[0];
-
-    __m128 sx = _mm_setzero_ps();
-    __m128 sy = _mm_setzero_ps();
-
-    size_t i = 1;
-
-    for (; i + 4 <= count; i += 4) {
-        sx = _mm_add_ps(sx, _mm_loadu_ps(vec_array->x + i));
-        sy = _mm_add_ps(sy, _mm_loadu_ps(vec_array->y + i));
-    }
-
-    float tail_x = 0.0f;
-    float tail_y = 0.0f;
-
-    for (; i < count; ++i) {
-        tail_x += vec_array->x[i];
-        tail_y += vec_array->y[i];
-    }
-
-    return (vec2f_t){
-        x0 - (hsum4_ps(sx) + tail_x),
-        y0 - (hsum4_ps(sy) + tail_y)
-    }; 
+#define DEFINE_REDUCTIONS_3D(PREFIX, TYPE, ARRAY, X, Y, Z) \
+TYPE PREFIX##_n_add(const ARRAY *restrict values, size_t count) { \
+    __m256 sx = _mm256_setzero_ps(), sy = _mm256_setzero_ps(), sz = _mm256_setzero_ps(); \
+    size_t i = 0; \
+    for (; i + 8 <= count; i += 8) { \
+        sx = _mm256_add_ps(sx, _mm256_loadu_ps(values->X + i)); \
+        sy = _mm256_add_ps(sy, _mm256_loadu_ps(values->Y + i)); \
+        sz = _mm256_add_ps(sz, _mm256_loadu_ps(values->Z + i)); \
+    } \
+    float x = hsum8_ps(sx), y = hsum8_ps(sy), z = hsum8_ps(sz); \
+    for (; i < count; ++i) { x += values->X[i]; y += values->Y[i]; z += values->Z[i]; } \
+    return (TYPE){x, y, z}; \
+} \
+TYPE PREFIX##_n_sub(const ARRAY *restrict values, size_t count) { \
+    if (count == 0) return (TYPE){0}; \
+    const float x0 = values->X[0], y0 = values->Y[0], z0 = values->Z[0]; \
+    __m256 sx = _mm256_setzero_ps(), sy = _mm256_setzero_ps(), sz = _mm256_setzero_ps(); \
+    size_t i = 1; \
+    for (; i + 8 <= count; i += 8) { \
+        sx = _mm256_add_ps(sx, _mm256_loadu_ps(values->X + i)); \
+        sy = _mm256_add_ps(sy, _mm256_loadu_ps(values->Y + i)); \
+        sz = _mm256_add_ps(sz, _mm256_loadu_ps(values->Z + i)); \
+    } \
+    float x = hsum8_ps(sx), y = hsum8_ps(sy), z = hsum8_ps(sz); \
+    for (; i < count; ++i) { x += values->X[i]; y += values->Y[i]; z += values->Z[i]; } \
+    return (TYPE){x0 - x, y0 - y, z0 - z}; \
+} \
+TYPE PREFIX##_n_mul(const ARRAY *restrict values, size_t count) { \
+    __m256 px = _mm256_set1_ps(1.0f), py = _mm256_set1_ps(1.0f), pz = _mm256_set1_ps(1.0f); \
+    size_t i = 0; \
+    for (; i + 8 <= count; i += 8) { \
+        px = _mm256_mul_ps(px, _mm256_loadu_ps(values->X + i)); \
+        py = _mm256_mul_ps(py, _mm256_loadu_ps(values->Y + i)); \
+        pz = _mm256_mul_ps(pz, _mm256_loadu_ps(values->Z + i)); \
+    } \
+    float x = hprod8_ps(px), y = hprod8_ps(py), z = hprod8_ps(pz); \
+    for (; i < count; ++i) { x *= values->X[i]; y *= values->Y[i]; z *= values->Z[i]; } \
+    return (TYPE){x, y, z}; \
+} \
+TYPE PREFIX##_n_div(const ARRAY *restrict values, size_t count) { \
+    if (count == 0) return (TYPE){0}; \
+    const float x0 = values->X[0], y0 = values->Y[0], z0 = values->Z[0]; \
+    __m256 px = _mm256_set1_ps(1.0f), py = _mm256_set1_ps(1.0f), pz = _mm256_set1_ps(1.0f); \
+    size_t i = 1; \
+    for (; i + 8 <= count; i += 8) { \
+        px = _mm256_mul_ps(px, _mm256_loadu_ps(values->X + i)); \
+        py = _mm256_mul_ps(py, _mm256_loadu_ps(values->Y + i)); \
+        pz = _mm256_mul_ps(pz, _mm256_loadu_ps(values->Z + i)); \
+    } \
+    float x = hprod8_ps(px), y = hprod8_ps(py), z = hprod8_ps(pz); \
+    for (; i < count; ++i) { x *= values->X[i]; y *= values->Y[i]; z *= values->Z[i]; } \
+    return (TYPE){x0 / x, y0 / y, z0 / z}; \
 }
 
-vec2f_t vec2f_n_mul(const vec2f_arr_t *restrict vec_array, size_t count) {
-    size_t i = 0;
-    __m128 prodx = _mm_set1_ps(1.0f);
-    __m128 prody = _mm_set1_ps(1.0f);
-
-    for (; i + 4 <= count; i += 4) {
-        prodx = _mm_mul_ps(prodx, _mm_loadu_ps(&vec_array->x[i]));
-        prody = _mm_mul_ps(prody, _mm_loadu_ps(&vec_array->y[i]));
-    }
-
-    vec2f_t result = { hsum4_ps(prodx), hsum4_ps(prody) };
-
-    for (; i < count; ++i) {
-        result.x *= vec_array->x[i];
-        result.y *= vec_array->y[i];
-    }
-
-    return result;
+#define DEFINE_REDUCTIONS_4D(PREFIX, TYPE, ARRAY, X, Y, Z, W) \
+TYPE PREFIX##_n_add(const ARRAY *values, size_t count) { \
+    __m256 sx = _mm256_setzero_ps(), sy = _mm256_setzero_ps(), sz = _mm256_setzero_ps(), sw = _mm256_setzero_ps(); \
+    size_t i = 0; \
+    for (; i + 8 <= count; i += 8) { \
+        sx = _mm256_add_ps(sx, _mm256_loadu_ps(values->X + i)); \
+        sy = _mm256_add_ps(sy, _mm256_loadu_ps(values->Y + i)); \
+        sz = _mm256_add_ps(sz, _mm256_loadu_ps(values->Z + i)); \
+        sw = _mm256_add_ps(sw, _mm256_loadu_ps(values->W + i)); \
+    } \
+    float x = hsum8_ps(sx), y = hsum8_ps(sy), z = hsum8_ps(sz), w = hsum8_ps(sw); \
+    for (; i < count; ++i) { x += values->X[i]; y += values->Y[i]; z += values->Z[i]; w += values->W[i]; } \
+    return (TYPE){x, y, z, w}; \
+} \
+TYPE PREFIX##_n_sub(const ARRAY *values, size_t count) { \
+    if (count == 0) return (TYPE){0}; \
+    const float x0 = values->X[0], y0 = values->Y[0], z0 = values->Z[0], w0 = values->W[0]; \
+    __m256 sx = _mm256_setzero_ps(), sy = _mm256_setzero_ps(), sz = _mm256_setzero_ps(), sw = _mm256_setzero_ps(); \
+    size_t i = 1; \
+    for (; i + 8 <= count; i += 8) { \
+        sx = _mm256_add_ps(sx, _mm256_loadu_ps(values->X + i)); \
+        sy = _mm256_add_ps(sy, _mm256_loadu_ps(values->Y + i)); \
+        sz = _mm256_add_ps(sz, _mm256_loadu_ps(values->Z + i)); \
+        sw = _mm256_add_ps(sw, _mm256_loadu_ps(values->W + i)); \
+    } \
+    float x = hsum8_ps(sx), y = hsum8_ps(sy), z = hsum8_ps(sz), w = hsum8_ps(sw); \
+    for (; i < count; ++i) { x += values->X[i]; y += values->Y[i]; z += values->Z[i]; w += values->W[i]; } \
+    return (TYPE){x0 - x, y0 - y, z0 - z, w0 - w}; \
+} \
+TYPE PREFIX##_n_mul(const ARRAY *values, size_t count) { \
+    __m256 px = _mm256_set1_ps(1.0f), py = _mm256_set1_ps(1.0f), pz = _mm256_set1_ps(1.0f), pw = _mm256_set1_ps(1.0f); \
+    size_t i = 0; \
+    for (; i + 8 <= count; i += 8) { \
+        px = _mm256_mul_ps(px, _mm256_loadu_ps(values->X + i)); \
+        py = _mm256_mul_ps(py, _mm256_loadu_ps(values->Y + i)); \
+        pz = _mm256_mul_ps(pz, _mm256_loadu_ps(values->Z + i)); \
+        pw = _mm256_mul_ps(pw, _mm256_loadu_ps(values->W + i)); \
+    } \
+    float x = hprod8_ps(px), y = hprod8_ps(py), z = hprod8_ps(pz), w = hprod8_ps(pw); \
+    for (; i < count; ++i) { x *= values->X[i]; y *= values->Y[i]; z *= values->Z[i]; w *= values->W[i]; } \
+    return (TYPE){x, y, z, w}; \
+} \
+TYPE PREFIX##_n_div(const ARRAY *restrict values, size_t count) { \
+    if (count == 0) return (TYPE){0}; \
+    const float x0 = values->X[0], y0 = values->Y[0], z0 = values->Z[0], w0 = values->W[0]; \
+    __m256 px = _mm256_set1_ps(1.0f), py = _mm256_set1_ps(1.0f), pz = _mm256_set1_ps(1.0f), pw = _mm256_set1_ps(1.0f); \
+    size_t i = 1; \
+    for (; i + 8 <= count; i += 8) { \
+        px = _mm256_mul_ps(px, _mm256_loadu_ps(values->X + i)); \
+        py = _mm256_mul_ps(py, _mm256_loadu_ps(values->Y + i)); \
+        pz = _mm256_mul_ps(pz, _mm256_loadu_ps(values->Z + i)); \
+        pw = _mm256_mul_ps(pw, _mm256_loadu_ps(values->W + i)); \
+    } \
+    float x = hprod8_ps(px), y = hprod8_ps(py), z = hprod8_ps(pz), w = hprod8_ps(pw); \
+    for (; i < count; ++i) { x *= values->X[i]; y *= values->Y[i]; z *= values->Z[i]; w *= values->W[i]; } \
+    return (TYPE){x0 / x, y0 / y, z0 / z, w0 / w}; \
 }
 
-vec2f_t vec2f_n_div(const vec2f_arr_t *restrict vec_array, size_t count) {
-    const float x0 = vec_array->x[0];
-    const float y0 = vec_array->y[0];
+DEFINE_REDUCTIONS_2D(vec2f, vec2f_t, vec2f_arr_t, x, y)
+DEFINE_REDUCTIONS_3D(vec3f, vec3f_t, vec3f_arr_t, x, y, z)
+DEFINE_REDUCTIONS_4D(vec4f, vec4f_t, vec4f_arr_t, x, y, z, w)
 
-    __m128 sx = _mm_set1_ps(1.0f);
-    __m128 sy = _mm_set1_ps(1.0f);
-
-    size_t i = 1;
-
-    for (; i + 4 <= count; i += 4) {
-        sx = _mm_mul_ps(sx, _mm_loadu_ps(vec_array->x + i));
-        sy = _mm_mul_ps(sy, _mm_loadu_ps(vec_array->y + i));
-    }
-
-    float tail_x = 1.0f;
-    float tail_y = 1.0f;
-
-    for (; i < count; ++i) {
-        tail_x *= vec_array->x[i];
-        tail_y *= vec_array->y[i];
-    }
-
-    return (vec2f_t){
-        x0 / (hmul4(sx) * tail_x),
-        y0 / (hmul4(sy) * tail_y)
-    };
+#define DEFINE_BINARY_2D(NAME, INTRIN, OP) \
+vec2f_arr_t *vec2f_arr_##NAME(vec2f_arr_t *restrict out, const vec2f_arr_t *restrict a, const vec2f_arr_t *restrict b, size_t count) { \
+    size_t i = 0; \
+    for (; i + 8 <= count; i += 8) { \
+        _mm256_storeu_ps(out->x + i, INTRIN(_mm256_loadu_ps(a->x + i), _mm256_loadu_ps(b->x + i))); \
+        _mm256_storeu_ps(out->y + i, INTRIN(_mm256_loadu_ps(a->y + i), _mm256_loadu_ps(b->y + i))); \
+    } \
+    for (; i < count; ++i) { out->x[i] = a->x[i] OP b->x[i]; out->y[i] = a->y[i] OP b->y[i]; } \
+    return out; \
+}
+#define DEFINE_BINARY_3D(NAME, INTRIN, OP) \
+vec3f_arr_t *vec3f_arr_##NAME(vec3f_arr_t *restrict out, const vec3f_arr_t *restrict a, const vec3f_arr_t *restrict b, size_t count) { \
+    size_t i = 0; \
+    for (; i + 8 <= count; i += 8) { \
+        _mm256_storeu_ps(out->x + i, INTRIN(_mm256_loadu_ps(a->x + i), _mm256_loadu_ps(b->x + i))); \
+        _mm256_storeu_ps(out->y + i, INTRIN(_mm256_loadu_ps(a->y + i), _mm256_loadu_ps(b->y + i))); \
+        _mm256_storeu_ps(out->z + i, INTRIN(_mm256_loadu_ps(a->z + i), _mm256_loadu_ps(b->z + i))); \
+    } \
+    for (; i < count; ++i) { out->x[i] = a->x[i] OP b->x[i]; out->y[i] = a->y[i] OP b->y[i]; out->z[i] = a->z[i] OP b->z[i]; } \
+    return out; \
+}
+#define DEFINE_BINARY_4D(NAME, INTRIN, OP) \
+vec4f_arr_t *vec4f_arr_##NAME(vec4f_arr_t *restrict out, const vec4f_arr_t *restrict a, const vec4f_arr_t *restrict b, size_t count) { \
+    size_t i = 0; \
+    for (; i + 8 <= count; i += 8) { \
+        _mm256_storeu_ps(out->x + i, INTRIN(_mm256_loadu_ps(a->x + i), _mm256_loadu_ps(b->x + i))); \
+        _mm256_storeu_ps(out->y + i, INTRIN(_mm256_loadu_ps(a->y + i), _mm256_loadu_ps(b->y + i))); \
+        _mm256_storeu_ps(out->z + i, INTRIN(_mm256_loadu_ps(a->z + i), _mm256_loadu_ps(b->z + i))); \
+        _mm256_storeu_ps(out->w + i, INTRIN(_mm256_loadu_ps(a->w + i), _mm256_loadu_ps(b->w + i))); \
+    } \
+    for (; i < count; ++i) { out->x[i] = a->x[i] OP b->x[i]; out->y[i] = a->y[i] OP b->y[i]; out->z[i] = a->z[i] OP b->z[i]; out->w[i] = a->w[i] OP b->w[i]; } \
+    return out; \
 }
 
-vec2f_arr_t *vec2f_arr_add(vec2f_arr_t *restrict out, const vec2f_arr_t *restrict a, const vec2f_arr_t *restrict b, size_t count) {
-    size_t i = 0;
-    for (; i + 4 <= count; i += 4) {
-        __m128 ax = _mm_loadu_ps(&a->x[i]);
-        __m128 bx = _mm_loadu_ps(&b->x[i]);
-        __m128 ay = _mm_loadu_ps(&a->y[i]);
-        __m128 by = _mm_loadu_ps(&b->y[i]);
+DEFINE_BINARY_2D(add, _mm256_add_ps, +)
+DEFINE_BINARY_2D(sub, _mm256_sub_ps, -)
+DEFINE_BINARY_2D(mul, _mm256_mul_ps, *)
+DEFINE_BINARY_2D(div, _mm256_div_ps, /)
+DEFINE_BINARY_3D(add, _mm256_add_ps, +)
+DEFINE_BINARY_3D(sub, _mm256_sub_ps, -)
+DEFINE_BINARY_3D(mul, _mm256_mul_ps, *)
+DEFINE_BINARY_3D(div, _mm256_div_ps, /)
+DEFINE_BINARY_4D(add, _mm256_add_ps, +)
+DEFINE_BINARY_4D(sub, _mm256_sub_ps, -)
+DEFINE_BINARY_4D(mul, _mm256_mul_ps, *)
+DEFINE_BINARY_4D(div, _mm256_div_ps, /)
 
-        _mm_storeu_ps(&out->x[i], _mm_add_ps(ax, bx));
-        _mm_storeu_ps(&out->y[i], _mm_add_ps(ay, by));
-    }
-
-    for (; i < count; ++i) {
-        out->x[i] = a->x[i] + b->x[i];
-        out->y[i] = a->y[i] + b->y[i];
-    }
-
-    return out;
+#define DEFINE_SCALE_3D() \
+vec3f_arr_t *vec3f_arr_scale(vec3f_arr_t *restrict out, const vec3f_arr_t *restrict values, float scalar, size_t count) { \
+    const __m256 scale = _mm256_set1_ps(scalar); size_t i = 0; \
+    for (; i + 8 <= count; i += 8) { \
+        _mm256_storeu_ps(out->x + i, _mm256_mul_ps(_mm256_loadu_ps(values->x + i), scale)); \
+        _mm256_storeu_ps(out->y + i, _mm256_mul_ps(_mm256_loadu_ps(values->y + i), scale)); \
+        _mm256_storeu_ps(out->z + i, _mm256_mul_ps(_mm256_loadu_ps(values->z + i), scale)); \
+    } \
+    for (; i < count; ++i) { out->x[i] = values->x[i] * scalar; out->y[i] = values->y[i] * scalar; out->z[i] = values->z[i] * scalar; } \
+    return out; \
 }
-
-vec2f_arr_t *vec2f_arr_sub(vec2f_arr_t *restrict out, const vec2f_arr_t *restrict a, const vec2f_arr_t *restrict b, size_t count) {
-    size_t i = 0;
-    for (; i + 4 <= count; i += 4) {
-        __m128 ax = _mm_loadu_ps(&a->x[i]);
-        __m128 bx = _mm_loadu_ps(&b->x[i]);
-        __m128 ay = _mm_loadu_ps(&a->y[i]);
-        __m128 by = _mm_loadu_ps(&b->y[i]);
-
-        _mm_storeu_ps(&out->x[i], _mm_sub_ps(ax, bx));
-        _mm_storeu_ps(&out->y[i], _mm_sub_ps(ay, by));
-    }
-
-    for (; i < count; ++i) {
-        out->x[i] = a->x[i] - b->x[i];
-        out->y[i] = a->y[i] - b->y[i];
-    }
-
-    return out;
+#define DEFINE_SCALE_4D() \
+vec4f_arr_t *vec4f_arr_scale(vec4f_arr_t *restrict out, const vec4f_arr_t *restrict values, float scalar, size_t count) { \
+    const __m256 scale = _mm256_set1_ps(scalar); size_t i = 0; \
+    for (; i + 8 <= count; i += 8) { \
+        _mm256_storeu_ps(out->x + i, _mm256_mul_ps(_mm256_loadu_ps(values->x + i), scale)); \
+        _mm256_storeu_ps(out->y + i, _mm256_mul_ps(_mm256_loadu_ps(values->y + i), scale)); \
+        _mm256_storeu_ps(out->z + i, _mm256_mul_ps(_mm256_loadu_ps(values->z + i), scale)); \
+        _mm256_storeu_ps(out->w + i, _mm256_mul_ps(_mm256_loadu_ps(values->w + i), scale)); \
+    } \
+    for (; i < count; ++i) { out->x[i] = values->x[i] * scalar; out->y[i] = values->y[i] * scalar; out->z[i] = values->z[i] * scalar; out->w[i] = values->w[i] * scalar; } \
+    return out; \
 }
+DEFINE_SCALE_3D()
+DEFINE_SCALE_4D()
 
-vec2f_arr_t *vec2f_arr_mul(vec2f_arr_t *restrict out, const vec2f_arr_t *restrict a, const vec2f_arr_t *restrict b, size_t count) {
-    size_t i = 0;
-    for (; i + 4 <= count; i += 4) {
-        __m128 ax = _mm_loadu_ps(&a->x[i]);
-        __m128 bx = _mm_loadu_ps(&b->x[i]);
-        __m128 ay = _mm_loadu_ps(&a->y[i]);
-        __m128 by = _mm_loadu_ps(&b->y[i]);
-
-        _mm_storeu_ps(&out->x[i], _mm_mul_ps(ax, bx));
-        _mm_storeu_ps(&out->y[i], _mm_mul_ps(ay, by));
-    }
-
-    for (; i < count; ++i) {
-        out->x[i] = a->x[i] * b->x[i];
-        out->y[i] = a->y[i] * b->y[i];
-    }
-
-    return out;
+#define DEFINE_LERP_2D() \
+vec2f_arr_t *vec2f_arr_lerp(vec2f_arr_t *restrict out, const vec2f_arr_t *restrict a, const vec2f_arr_t *restrict b, float t, size_t count) { \
+    const __m256 vt = _mm256_set1_ps(t); size_t i = 0; \
+    for (; i + 8 <= count; i += 8) { \
+        _mm256_storeu_ps(out->x + i, _mm256_fmadd_ps(_mm256_sub_ps(_mm256_loadu_ps(b->x + i), _mm256_loadu_ps(a->x + i)), vt, _mm256_loadu_ps(a->x + i))); \
+        _mm256_storeu_ps(out->y + i, _mm256_fmadd_ps(_mm256_sub_ps(_mm256_loadu_ps(b->y + i), _mm256_loadu_ps(a->y + i)), vt, _mm256_loadu_ps(a->y + i))); \
+    } \
+    for (; i < count; ++i) { out->x[i] = fmaf(b->x[i] - a->x[i], t, a->x[i]); out->y[i] = fmaf(b->y[i] - a->y[i], t, a->y[i]); } \
+    return out; \
 }
-
-vec2f_arr_t *vec2f_arr_div(vec2f_arr_t *restrict out, const vec2f_arr_t *restrict a, const vec2f_arr_t *restrict b, size_t count) {
-    size_t i = 0;
-    for (; i + 4 <= count; i += 4) {
-        __m128 ax = _mm_loadu_ps(&a->x[i]);
-        __m128 bx = _mm_loadu_ps(&b->x[i]);
-        __m128 ay = _mm_loadu_ps(&a->y[i]);
-        __m128 by = _mm_loadu_ps(&b->y[i]);
-
-        _mm_storeu_ps(&out->x[i], _mm_div_ps(ax, bx));
-        _mm_storeu_ps(&out->y[i], _mm_div_ps(ay, by));
-    }
-
-    for (; i < count; ++i) {
-        out->x[i] = a->x[i] / b->x[i];
-        out->y[i] = a->y[i] / b->y[i];
-    }
-
-    return out;
+#define DEFINE_LERP_3D() \
+vec3f_arr_t *vec3f_arr_lerp(vec3f_arr_t *restrict out, const vec3f_arr_t *restrict a, const vec3f_arr_t *restrict b, float t, size_t count) { \
+    const __m256 vt = _mm256_set1_ps(t); size_t i = 0; \
+    for (; i + 8 <= count; i += 8) { \
+        _mm256_storeu_ps(out->x + i, _mm256_fmadd_ps(_mm256_sub_ps(_mm256_loadu_ps(b->x + i), _mm256_loadu_ps(a->x + i)), vt, _mm256_loadu_ps(a->x + i))); \
+        _mm256_storeu_ps(out->y + i, _mm256_fmadd_ps(_mm256_sub_ps(_mm256_loadu_ps(b->y + i), _mm256_loadu_ps(a->y + i)), vt, _mm256_loadu_ps(a->y + i))); \
+        _mm256_storeu_ps(out->z + i, _mm256_fmadd_ps(_mm256_sub_ps(_mm256_loadu_ps(b->z + i), _mm256_loadu_ps(a->z + i)), vt, _mm256_loadu_ps(a->z + i))); \
+    } \
+    for (; i < count; ++i) { out->x[i] = fmaf(b->x[i] - a->x[i], t, a->x[i]); out->y[i] = fmaf(b->y[i] - a->y[i], t, a->y[i]); out->z[i] = fmaf(b->z[i] - a->z[i], t, a->z[i]); } \
+    return out; \
 }
-
-vec2f_arr_t *vec2f_arr_scale(vec2f_arr_t *restrict out, const vec2f_arr_t *restrict vec_array, float s, size_t count) {
-    const __m128 scale = _mm_set1_ps(s);
-
-    size_t i = 0;
-
-    for (; i + 4 <= count; i += 4) {
-        __m128 x = _mm_loadu_ps(&vec_array->x[i]);
-        __m128 y = _mm_loadu_ps(&vec_array->y[i]);
-
-        _mm_storeu_ps(
-            &out->x[i],
-            _mm_mul_ps(x, scale)
-        );
-
-        _mm_storeu_ps(
-            &out->y[i],
-            _mm_mul_ps(y, scale)
-        );
-    }
-
-    for (; i < count; ++i) {
-        out->x[i] = vec_array->x[i] * s;
-        out->y[i] = vec_array->y[i] * s;
-    }
-
-    return out;
+#define DEFINE_LERP_4D() \
+vec4f_arr_t *vec4f_arr_lerp(vec4f_arr_t *restrict out, const vec4f_arr_t *restrict a, const vec4f_arr_t *restrict b, float t, size_t count) { \
+    const __m256 vt = _mm256_set1_ps(t); size_t i = 0; \
+    for (; i + 8 <= count; i += 8) { \
+        _mm256_storeu_ps(out->x + i, _mm256_fmadd_ps(_mm256_sub_ps(_mm256_loadu_ps(b->x + i), _mm256_loadu_ps(a->x + i)), vt, _mm256_loadu_ps(a->x + i))); \
+        _mm256_storeu_ps(out->y + i, _mm256_fmadd_ps(_mm256_sub_ps(_mm256_loadu_ps(b->y + i), _mm256_loadu_ps(a->y + i)), vt, _mm256_loadu_ps(a->y + i))); \
+        _mm256_storeu_ps(out->z + i, _mm256_fmadd_ps(_mm256_sub_ps(_mm256_loadu_ps(b->z + i), _mm256_loadu_ps(a->z + i)), vt, _mm256_loadu_ps(a->z + i))); \
+        _mm256_storeu_ps(out->w + i, _mm256_fmadd_ps(_mm256_sub_ps(_mm256_loadu_ps(b->w + i), _mm256_loadu_ps(a->w + i)), vt, _mm256_loadu_ps(a->w + i))); \
+    } \
+    for (; i < count; ++i) { out->x[i] = fmaf(b->x[i] - a->x[i], t, a->x[i]); out->y[i] = fmaf(b->y[i] - a->y[i], t, a->y[i]); out->z[i] = fmaf(b->z[i] - a->z[i], t, a->z[i]); out->w[i] = fmaf(b->w[i] - a->w[i], t, a->w[i]); } \
+    return out; \
 }
-
-// ----------------------------------------------------------------------------------------------------------------------------
-// vec3
-
-vec3f_t vec3f_n_add(const vec3f_arr_t *restrict vec_array, size_t count) {
-    size_t i = 0;
-    __m128 sumx = _mm_setzero_ps();
-    __m128 sumy = _mm_setzero_ps();
-    __m128 sumz = _mm_setzero_ps();
-
-    for (; i + 4 <= count; i += 4) {
-        sumx = _mm_add_ps(sumx, _mm_loadu_ps(&vec_array->x[i]));
-        sumy = _mm_add_ps(sumy, _mm_loadu_ps(&vec_array->y[i]));
-        sumz = _mm_add_ps(sumz, _mm_loadu_ps(&vec_array->z[i]));
-    }
-
-    vec3f_t result = {
-        hsum4_ps(sumx),
-        hsum4_ps(sumy),
-        hsum4_ps(sumz)
-    };
-
-    for (; i < count; ++i) {
-        result.x += vec_array->x[i];
-        result.y += vec_array->y[i];
-        result.z += vec_array->z[i];
-    }
-
-    return result;
-}
-
-vec3f_t vec3f_n_sub(const vec3f_arr_t *restrict vec_array, size_t count) {
-    const float x0 = vec_array->x[0];
-    const float y0 = vec_array->y[0];
-    const float z0 = vec_array->z[0];
-
-    __m128 sx = _mm_setzero_ps();
-    __m128 sy = _mm_setzero_ps();
-    __m128 sz = _mm_setzero_ps();
-
-    size_t i = 1;
-
-    for (; i + 4 <= count; i += 4) {
-        sx = _mm_add_ps(sx, _mm_loadu_ps(vec_array->x + i));
-        sy = _mm_add_ps(sy, _mm_loadu_ps(vec_array->y + i));
-        sz = _mm_add_ps(sz, _mm_loadu_ps(vec_array->z + i));
-    }
-
-    float tail_x = 0.0f;
-    float tail_y = 0.0f;
-    float tail_z = 0.0f;
-
-    for (; i < count; ++i) {
-        tail_x += vec_array->x[i];
-        tail_y += vec_array->y[i];
-        tail_z += vec_array->z[i];
-    }
-
-    return (vec3f_t){
-        x0 - (hsum4_ps(sx) + tail_x),
-        y0 - (hsum4_ps(sy) + tail_y),
-        z0 - (hsum4_ps(sz) + tail_z)
-    }; 
-}
-
-vec3f_t vec3f_n_mul(const vec3f_arr_t *restrict vec_array, size_t count) {
-    size_t i = 0;
-    __m128 prodx = _mm_set1_ps(1.0f);
-    __m128 prody = _mm_set1_ps(1.0f);
-    __m128 prodz = _mm_set1_ps(1.0f);
-
-    for (; i + 4 <= count; i += 4) {
-        prodx = _mm_mul_ps(prodx, _mm_loadu_ps(&vec_array->x[i]));
-        prody = _mm_mul_ps(prody, _mm_loadu_ps(&vec_array->y[i]));
-        prodz = _mm_mul_ps(prodz, _mm_loadu_ps(&vec_array->z[i]));
-    }
-
-    vec3f_t result = {
-        hsum4_ps(prodx), 
-        hsum4_ps(prody), 
-        hsum4_ps(prodz)
-    };
-
-    for (; i < count; ++i) {
-        result.x *= vec_array->x[i];
-        result.y *= vec_array->y[i];
-        result.z *= vec_array->z[i];
-    }
-
-    return result;
-}
-
-vec3f_t vec3f_n_div(const vec3f_arr_t *restrict vec_array, size_t count) {
-    const float x0 = vec_array->x[0];
-    const float y0 = vec_array->y[0];
-    const float z0 = vec_array->z[0];
-
-    __m128 sx = _mm_set1_ps(1.0f);
-    __m128 sy = _mm_set1_ps(1.0f);
-    __m128 sz = _mm_set1_ps(1.0f);
-
-    size_t i = 1;
-
-    for (; i + 4 <= count; i += 4) {
-        sx = _mm_mul_ps(sx, _mm_loadu_ps(vec_array->x + i));
-        sy = _mm_mul_ps(sy, _mm_loadu_ps(vec_array->y + i));
-        sz = _mm_mul_ps(sz, _mm_loadu_ps(vec_array->z + i));
-    }
-
-    float tail_x = 1.0f;
-    float tail_y = 1.0f;
-    float tail_z = 1.0f;
-
-    for (; i < count; ++i) {
-        tail_x *= vec_array->x[i];
-        tail_y *= vec_array->y[i];
-        tail_z *= vec_array->z[i];
-    }
-
-    return (vec3f_t){
-        x0 / (hmul4(sx) * tail_x),
-        y0 / (hmul4(sy) * tail_y),
-        z0 / (hmul4(sz) * tail_z)
-    };
-}
-
-vec3f_arr_t *vec3f_arr_add(vec3f_arr_t *restrict out, const vec3f_arr_t *restrict a, const vec3f_arr_t *restrict b, size_t count) {
-    size_t i = 0;
-    for (; i + 4 <= count; i += 4) {
-        __m128 ax = _mm_loadu_ps(&a->x[i]);
-        __m128 bx = _mm_loadu_ps(&b->x[i]);
-        __m128 ay = _mm_loadu_ps(&a->y[i]);
-        __m128 by = _mm_loadu_ps(&b->y[i]);
-        __m128 az = _mm_loadu_ps(&a->z[i]);
-        __m128 bz = _mm_loadu_ps(&b->z[i]);
-
-        _mm_storeu_ps(&out->x[i], _mm_add_ps(ax, bx));
-        _mm_storeu_ps(&out->y[i], _mm_add_ps(ay, by));
-        _mm_storeu_ps(&out->z[i], _mm_add_ps(az, bz));
-    }
-
-    for (; i < count; ++i) {
-        out->x[i] = a->x[i] + b->x[i];
-        out->y[i] = a->y[i] + b->y[i];
-        out->z[i] = a->z[i] + b->z[i];
-    }
-
-    return out;
-}
-
-vec3f_arr_t *vec3f_arr_sub(vec3f_arr_t *restrict out, const vec3f_arr_t *restrict a, const vec3f_arr_t *restrict b, size_t count) {
-    size_t i = 0;
-    for (; i + 4 <= count; i += 4) {
-        __m128 ax = _mm_loadu_ps(&a->x[i]);
-        __m128 bx = _mm_loadu_ps(&b->x[i]);
-        __m128 ay = _mm_loadu_ps(&a->y[i]);
-        __m128 by = _mm_loadu_ps(&b->y[i]);
-        __m128 az = _mm_loadu_ps(&a->z[i]);
-        __m128 bz = _mm_loadu_ps(&b->z[i]);
-
-        _mm_storeu_ps(&out->x[i], _mm_sub_ps(ax, bx));
-        _mm_storeu_ps(&out->y[i], _mm_sub_ps(ay, by));
-        _mm_storeu_ps(&out->z[i], _mm_sub_ps(az, bz));
-    }
-
-    for (; i < count; ++i) {
-        out->x[i] = a->x[i] - b->x[i];
-        out->y[i] = a->y[i] - b->y[i];
-        out->z[i] = a->z[i] - b->z[i];
-    }
-
-    return out;
-}
-
-vec3f_arr_t *vec3f_arr_mul(vec3f_arr_t *restrict out, const vec3f_arr_t *restrict a, const vec3f_arr_t *restrict b, size_t count) {
-    size_t i = 0;
-    for (; i + 4 <= count; i += 4) {
-        __m128 ax = _mm_loadu_ps(&a->x[i]);
-        __m128 bx = _mm_loadu_ps(&b->x[i]);
-        __m128 ay = _mm_loadu_ps(&a->y[i]);
-        __m128 by = _mm_loadu_ps(&b->y[i]);
-        __m128 az = _mm_loadu_ps(&a->z[i]);
-        __m128 bz = _mm_loadu_ps(&b->z[i]);
-
-        _mm_storeu_ps(&out->x[i], _mm_mul_ps(ax, bx));
-        _mm_storeu_ps(&out->y[i], _mm_mul_ps(ay, by));
-        _mm_storeu_ps(&out->z[i], _mm_mul_ps(az, bz));
-    }
-
-    for (; i < count; ++i) {
-        out->x[i] = a->x[i] * b->x[i];
-        out->y[i] = a->y[i] * b->y[i];
-        out->z[i] = a->z[i] * b->z[i];
-    }
-
-    return out;
-}
-
-vec3f_arr_t *vec3f_arr_div(vec3f_arr_t *restrict out, const vec3f_arr_t *restrict a, const vec3f_arr_t *restrict b, size_t count) {
-    size_t i = 0;
-    for (; i + 4 <= count; i += 4) {
-        __m128 ax = _mm_loadu_ps(&a->x[i]);
-        __m128 bx = _mm_loadu_ps(&b->x[i]);
-        __m128 ay = _mm_loadu_ps(&a->y[i]);
-        __m128 by = _mm_loadu_ps(&b->y[i]);
-        __m128 az = _mm_loadu_ps(&a->z[i]);
-        __m128 bz = _mm_loadu_ps(&b->z[i]);
-
-        _mm_storeu_ps(&out->x[i], _mm_div_ps(ax, bx));
-        _mm_storeu_ps(&out->y[i], _mm_div_ps(ay, by));
-        _mm_storeu_ps(&out->z[i], _mm_div_ps(az, bz));
-    }
-
-    for (; i < count; ++i) {
-        out->x[i] = a->x[i] / b->x[i];
-        out->y[i] = a->y[i] / b->y[i];
-        out->z[i] = a->z[i] / b->z[i];
-    }
-
-    return out;
-}
-
-vec3f_arr_t *vec3f_arr_scale(vec3f_arr_t *restrict out, const vec3f_arr_t *restrict vec_array, float s, size_t count) {
-    const __m128 scale = _mm_set1_ps(s);
-
-    size_t i = 0;
-
-    for (; i + 4 <= count; i += 4) {
-        __m128 x = _mm_loadu_ps(&vec_array->x[i]);
-        __m128 y = _mm_loadu_ps(&vec_array->y[i]);
-        __m128 z = _mm_loadu_ps(&vec_array->z[i]);
-
-        _mm_storeu_ps(
-            &out->x[i],
-            _mm_mul_ps(x, scale)
-        );
-
-        _mm_storeu_ps(
-            &out->y[i],
-            _mm_mul_ps(y, scale)
-        );
-
-        _mm_storeu_ps(
-            &out->z[i],
-            _mm_mul_ps(z, scale)
-        );
-    }
-
-    for (; i < count; ++i) {
-        out->x[i] = vec_array->x[i] * s;
-        out->y[i] = vec_array->y[i] * s;
-        out->z[i] = vec_array->z[i] * s;
-    }
-
-    return out;
-}
-
-
-// ----------------------------------------------------------------------------------------------------------------------------
-// vec4
-
-vec4f_t vec4f_n_add(const vec4f_arr_t *vec_array, size_t count) {
-    vec4f_t result = {0.0f, 0.0f, 0.0f, 0.0f};
-
-    size_t i = 0;
-    __m128 sumx = _mm_setzero_ps();
-    __m128 sumy = _mm_setzero_ps();
-    __m128 sumz = _mm_setzero_ps();
-    __m128 sumw = _mm_setzero_ps();
-
-    for (; i + 4 <= count; i += 4) {
-        sumx = _mm_add_ps(sumx, _mm_loadu_ps(&vec_array->x[i]));
-        sumy = _mm_add_ps(sumy, _mm_loadu_ps(&vec_array->y[i]));
-        sumz = _mm_add_ps(sumz, _mm_loadu_ps(&vec_array->z[i]));
-        sumw = _mm_add_ps(sumw, _mm_loadu_ps(&vec_array->w[i]));
-    }
-
-    result.x = hsum4_ps(sumx); 
-    result.y = hsum4_ps(sumy); 
-    result.z = hsum4_ps(sumz); 
-    result.w = hsum4_ps(sumw); 
-
-    for (; i < count; ++i) {
-        result.x += vec_array->x[i];
-        result.y += vec_array->y[i];
-        result.z += vec_array->z[i];
-        result.w += vec_array->w[i];
-    }
-
-    return result;
-}
-
-vec4f_t vec4f_n_sub(const vec4f_arr_t *vec_array, size_t count) {
-    const float x0 = vec_array->x[0];
-    const float y0 = vec_array->y[0];
-    const float z0 = vec_array->z[0];
-    const float w0 = vec_array->w[0];
-
-    __m128 sx = _mm_setzero_ps();
-    __m128 sy = _mm_setzero_ps();
-    __m128 sz = _mm_setzero_ps();
-    __m128 sw = _mm_setzero_ps();
-
-    size_t i = 1;
-
-    for (; i + 4 <= count; i += 4) {
-        sx = _mm_add_ps(sx, _mm_loadu_ps(vec_array->x + i));
-        sy = _mm_add_ps(sy, _mm_loadu_ps(vec_array->y + i));
-        sz = _mm_add_ps(sz, _mm_loadu_ps(vec_array->z + i));
-        sw = _mm_add_ps(sw, _mm_loadu_ps(vec_array->w + i));
-    }
-
-    float tail_x = 0.0f;
-    float tail_y = 0.0f;
-    float tail_z = 0.0f;
-    float tail_w = 0.0f;
-
-    for (; i < count; ++i) {
-        tail_x += vec_array->x[i];
-        tail_y += vec_array->y[i];
-        tail_z += vec_array->z[i];
-        tail_w += vec_array->w[i];
-    }
-
-    return (vec4f_t){
-        x0 - (hsum4_ps(sx) + tail_x),
-        y0 - (hsum4_ps(sy) + tail_y),
-        z0 - (hsum4_ps(sz) + tail_z),
-        w0 - (hsum4_ps(sw) + tail_w)
-    }; 
-}
-
-vec4f_t vec4f_n_mul(const vec4f_arr_t *vec_array, size_t count) {
-    size_t i = 0;
-    __m128 prodx = _mm_set1_ps(1.0f);
-    __m128 prody = _mm_set1_ps(1.0f);
-    __m128 prodz = _mm_set1_ps(1.0f);
-    __m128 prodw = _mm_set1_ps(1.0f);
-
-    for (; i + 4 <= count; i += 4) {
-        prodx = _mm_mul_ps(prodx, _mm_loadu_ps(&vec_array->x[i]));
-        prody = _mm_mul_ps(prody, _mm_loadu_ps(&vec_array->y[i]));
-        prodz = _mm_mul_ps(prodz, _mm_loadu_ps(&vec_array->z[i]));
-        prodw = _mm_mul_ps(prodw, _mm_loadu_ps(&vec_array->w[i]));
-    }
-
-    vec4f_t result = {
-        hsum4_ps(prodx), 
-        hsum4_ps(prody), 
-        hsum4_ps(prodz), 
-        hsum4_ps(prodw) 
-    };
-
-    for (; i < count; ++i) {
-        result.x *= vec_array->x[i];
-        result.y *= vec_array->y[i];
-        result.z *= vec_array->z[i];
-        result.w *= vec_array->w[i];
-    }
-
-    return result;
-}
-
-vec4f_t vec4f_n_div(const vec4f_arr_t *restrict vec_array, size_t count) {
-    const float x0 = vec_array->x[0];
-    const float y0 = vec_array->y[0];
-    const float z0 = vec_array->z[0];
-    const float w0 = vec_array->w[0];
-
-    __m128 sx = _mm_set1_ps(1.0f);
-    __m128 sy = _mm_set1_ps(1.0f);
-    __m128 sz = _mm_set1_ps(1.0f);
-    __m128 sw = _mm_set1_ps(1.0f);
-
-    size_t i = 1;
-
-    for (; i + 4 <= count; i += 4) {
-        sx = _mm_mul_ps(sx, _mm_loadu_ps(vec_array->x + i));
-        sy = _mm_mul_ps(sy, _mm_loadu_ps(vec_array->y + i));
-        sz = _mm_mul_ps(sz, _mm_loadu_ps(vec_array->z + i));
-        sw = _mm_mul_ps(sw, _mm_loadu_ps(vec_array->w + i));
-    }
-
-    float tail_x = 1.0f;
-    float tail_y = 1.0f;
-    float tail_z = 1.0f;
-    float tail_w = 1.0f;
-
-    for (; i < count; ++i) {
-        tail_x *= vec_array->x[i];
-        tail_y *= vec_array->y[i];
-        tail_z *= vec_array->z[i];
-        tail_w *= vec_array->w[i];
-    }
-
-    return (vec4f_t){
-        x0 / (hmul4(sx) * tail_x),
-        y0 / (hmul4(sy) * tail_y),
-        z0 / (hmul4(sz) * tail_z),
-        w0 / (hmul4(sw) * tail_w)
-    };
-}
-
-vec4f_arr_t *vec4f_arr_add(vec4f_arr_t *restrict out, const vec4f_arr_t *restrict a, const vec4f_arr_t *restrict b, size_t count) {
-    size_t i = 0;
-    for (; i + 4 <= count; i += 4) {
-        __m128 ax = _mm_loadu_ps(&a->x[i]);
-        __m128 bx = _mm_loadu_ps(&b->x[i]);
-        __m128 ay = _mm_loadu_ps(&a->y[i]);
-        __m128 by = _mm_loadu_ps(&b->y[i]);
-        __m128 az = _mm_loadu_ps(&a->z[i]);
-        __m128 bz = _mm_loadu_ps(&b->z[i]);
-        __m128 aw = _mm_loadu_ps(&a->w[i]);
-        __m128 bw = _mm_loadu_ps(&b->w[i]);
-
-        _mm_storeu_ps(&out->x[i], _mm_add_ps(ax, bx));
-        _mm_storeu_ps(&out->y[i], _mm_add_ps(ay, by));
-        _mm_storeu_ps(&out->z[i], _mm_add_ps(az, bz));
-        _mm_storeu_ps(&out->w[i], _mm_add_ps(aw, bw));
-    }
-
-    for (; i < count; ++i) {
-        out->x[i] = a->x[i] + b->x[i];
-        out->y[i] = a->y[i] + b->y[i];
-        out->z[i] = a->z[i] + b->z[i];
-        out->w[i] = a->w[i] + b->w[i];
-    }
-
-    return out;
-}
-
-vec4f_arr_t *vec4f_arr_sub(vec4f_arr_t *restrict out, const vec4f_arr_t *restrict a, const vec4f_arr_t *restrict b, size_t count) {
-    size_t i = 0;
-    for (; i + 4 <= count; i += 4) {
-        __m128 ax = _mm_loadu_ps(&a->x[i]);
-        __m128 bx = _mm_loadu_ps(&b->x[i]);
-        __m128 ay = _mm_loadu_ps(&a->y[i]);
-        __m128 by = _mm_loadu_ps(&b->y[i]);
-        __m128 az = _mm_loadu_ps(&a->z[i]);
-        __m128 bz = _mm_loadu_ps(&b->z[i]);
-        __m128 aw = _mm_loadu_ps(&a->w[i]);
-        __m128 bw = _mm_loadu_ps(&b->w[i]);
-
-        _mm_storeu_ps(&out->x[i], _mm_sub_ps(ax, bx));
-        _mm_storeu_ps(&out->y[i], _mm_sub_ps(ay, by));
-        _mm_storeu_ps(&out->z[i], _mm_sub_ps(az, bz));
-        _mm_storeu_ps(&out->w[i], _mm_sub_ps(aw, bw));
-    }
-
-    for (; i < count; ++i) {
-        out->x[i] = a->x[i] - b->x[i];
-        out->y[i] = a->y[i] - b->y[i];
-        out->z[i] = a->z[i] - b->z[i];
-        out->w[i] = a->w[i] - b->w[i];
-    }
-
-    return out;
-}
-
-vec4f_arr_t *vec4f_arr_mul(vec4f_arr_t *restrict out, const vec4f_arr_t *restrict a, const vec4f_arr_t *restrict b, size_t count) {
-    size_t i = 0;
-    for (; i + 4 <= count; i += 4) {
-        __m128 ax = _mm_loadu_ps(&a->x[i]);
-        __m128 bx = _mm_loadu_ps(&b->x[i]);
-        __m128 ay = _mm_loadu_ps(&a->y[i]);
-        __m128 by = _mm_loadu_ps(&b->y[i]);
-        __m128 az = _mm_loadu_ps(&a->z[i]);
-        __m128 bz = _mm_loadu_ps(&b->z[i]);
-        __m128 aw = _mm_loadu_ps(&a->w[i]);
-        __m128 bw = _mm_loadu_ps(&b->w[i]);
-
-        _mm_storeu_ps(&out->x[i], _mm_mul_ps(ax, bx));
-        _mm_storeu_ps(&out->y[i], _mm_mul_ps(ay, by));
-        _mm_storeu_ps(&out->z[i], _mm_mul_ps(az, bz));
-        _mm_storeu_ps(&out->w[i], _mm_mul_ps(aw, bw));
-    }
-
-    for (; i < count; ++i) {
-        out->x[i] = a->x[i] * b->x[i];
-        out->y[i] = a->y[i] * b->y[i];
-        out->z[i] = a->z[i] * b->z[i];
-        out->w[i] = a->w[i] * b->w[i];
-    }
-
-    return out;
-}
-
-vec4f_arr_t *vec4f_arr_div(vec4f_arr_t *restrict out, const vec4f_arr_t *restrict a, const vec4f_arr_t *restrict b, size_t count) {
-    size_t i = 0;
-    for (; i + 4 <= count; i += 4) {
-        __m128 ax = _mm_loadu_ps(&a->x[i]);
-        __m128 bx = _mm_loadu_ps(&b->x[i]);
-        __m128 ay = _mm_loadu_ps(&a->y[i]);
-        __m128 by = _mm_loadu_ps(&b->y[i]);
-        __m128 az = _mm_loadu_ps(&a->z[i]);
-        __m128 bz = _mm_loadu_ps(&b->z[i]);
-        __m128 aw = _mm_loadu_ps(&a->w[i]);
-        __m128 bw = _mm_loadu_ps(&b->w[i]);
-
-        _mm_storeu_ps(&out->x[i], _mm_div_ps(ax, bx));
-        _mm_storeu_ps(&out->y[i], _mm_div_ps(ay, by));
-        _mm_storeu_ps(&out->z[i], _mm_div_ps(az, bz));
-        _mm_storeu_ps(&out->w[i], _mm_div_ps(aw, bw));
-    }
-
-    for (; i < count; ++i) {
-        out->x[i] = a->x[i] / b->x[i];
-        out->y[i] = a->y[i] / b->y[i];
-        out->z[i] = a->z[i] / b->z[i];
-        out->w[i] = a->w[i] / b->w[i];
-    }
-
-    return out;
-}
-
-vec4f_arr_t *vec4f_arr_scale(vec4f_arr_t *restrict out, const vec4f_arr_t *restrict vec_array, float s, size_t count) {
-    const __m128 scale = _mm_set1_ps(s);
-
-    size_t i = 0;
-
-    for (; i + 4 <= count; i += 4) {
-        __m128 x = _mm_loadu_ps(&vec_array->x[i]);
-        __m128 y = _mm_loadu_ps(&vec_array->y[i]);
-        __m128 z = _mm_loadu_ps(&vec_array->z[i]);
-        __m128 w = _mm_loadu_ps(&vec_array->w[i]);
-
-        _mm_storeu_ps(
-            &out->x[i],
-            _mm_mul_ps(x, scale)
-        );
-
-        _mm_storeu_ps(
-            &out->y[i],
-            _mm_mul_ps(y, scale)
-        );
-
-        _mm_storeu_ps(
-            &out->z[i],
-            _mm_mul_ps(z, scale)
-        );
-
-        _mm_storeu_ps(
-            &out->w[i],
-            _mm_mul_ps(w, scale) 
-        );
-    }
-
-    for (; i < count; ++i) {
-        out->x[i] = vec_array->x[i] * s;
-        out->y[i] = vec_array->y[i] * s;
-        out->z[i] = vec_array->z[i] * s;
-        out->w[i] = vec_array->w[i] * s;
-    }
-
-    return out;
-}
-
-
-
-// vertex
-
-
+DEFINE_LERP_2D()
+DEFINE_LERP_3D()
+DEFINE_LERP_4D()

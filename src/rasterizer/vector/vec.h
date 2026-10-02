@@ -63,33 +63,6 @@ typedef struct rpixel_t {
     int32_t y;
 } rpixel_t; 
 
-static inline float hsum4(__m128 v) {
-    __m128 t = _mm_add_ps(v, _mm_movehl_ps(v, v));
-    t = _mm_add_ss(t, _mm_shuffle_ps(t, t, 1));
-    return _mm_cvtss_f32(t);
-}
-
-static inline float hsum4_ps(__m128 v) {
-    __m128 hi = _mm_movehl_ps(v, v);
-    v = _mm_add_ps(v, hi);
-
-    __m128 shuf = _mm_shuffle_ps(v, v, _MM_SHUFFLE(1, 1, 1, 1));
-    v = _mm_add_ss(v, shuf);
-
-    return _mm_cvtss_f32(v);
-}
-
-static inline float hmul4(__m128 v) {
-    __m128 hi = _mm_movehl_ps(v, v);
-    v = _mm_mul_ps(v, hi);
-
-    __m128 shuf = _mm_shuffle_ps(v, v, 1);
-    v = _mm_mul_ss(v, shuf);
-
-    return _mm_cvtss_f32(v);
-}
-
-
 inline vec2f_t from_vec2_arr(const vec2f_arr_t *arr, size_t n);
 inline vec3f_t from_vec3_arr(const vec3f_arr_t *arr, size_t n);
 inline vec4f_t from_vec4_arr(const vec4f_arr_t *arr, size_t n);
@@ -243,10 +216,12 @@ vec2f_arr_t *vec2f_arr_add(vec2f_arr_t *restrict out, const vec2f_arr_t *restric
 vec2f_arr_t *vec2f_arr_sub(vec2f_arr_t *restrict out, const vec2f_arr_t *restrict a, const vec2f_arr_t *restrict b, size_t count);
 vec2f_arr_t *vec2f_arr_mul(vec2f_arr_t *restrict out, const vec2f_arr_t *restrict a, const vec2f_arr_t *restrict b, size_t count);
 vec2f_arr_t *vec2f_arr_div(vec2f_arr_t *restrict out, const vec2f_arr_t *restrict a, const vec2f_arr_t *restrict b, size_t count);
+vec2f_arr_t *vec2f_arr_scale(vec2f_arr_t *restrict out, const vec2f_arr_t *restrict values, float scalar, size_t count);
+vec2f_arr_t *vec2f_arr_lerp(vec2f_arr_t *restrict out, const vec2f_arr_t *restrict a, const vec2f_arr_t *restrict b, float t, size_t count);
 static inline vec2f_t vec2f_lerp(vec2f_t a, vec2f_t b, float t) {
     return VEC_INIT(vec2f_t,
-        a.x + (b.x - a.x) * t,
-        a.y + (b.y - a.y) * t
+        fmaf(b.x - a.x, t, a.x),
+        fmaf(b.y - a.y, t, a.y)
     );
 }
 
@@ -360,11 +335,12 @@ vec3f_arr_t *vec3f_arr_sub(vec3f_arr_t *restrict out, const vec3f_arr_t *restric
 vec3f_arr_t *vec3f_arr_mul(vec3f_arr_t *restrict out, const vec3f_arr_t *restrict a, const vec3f_arr_t *restrict b, size_t count);
 vec3f_arr_t *vec3f_arr_div(vec3f_arr_t *restrict out, const vec3f_arr_t *restrict a, const vec3f_arr_t *restrict b, size_t count);
 vec3f_arr_t *vec3f_arr_scale(vec3f_arr_t *restrict out, const vec3f_arr_t *restrict vec_array, float s, size_t count);
+vec3f_arr_t *vec3f_arr_lerp(vec3f_arr_t *restrict out, const vec3f_arr_t *restrict a, const vec3f_arr_t *restrict b, float t, size_t count);
 static inline vec3f_t vec3f_lerp(vec3f_t a, vec3f_t b, float t) {
     return VEC_INIT(vec3f_t,
-        a.x + (b.x - a.x) * t,
-        a.y + (b.y - a.y) * t,
-        a.z + (b.z - a.z) * t
+        fmaf(b.x - a.x, t, a.x),
+        fmaf(b.y - a.y, t, a.y),
+        fmaf(b.z - a.z, t, a.z)
     );
 }
 
@@ -486,26 +462,23 @@ vec4f_arr_t *vec4f_arr_sub(vec4f_arr_t *restrict out, const vec4f_arr_t *restric
 vec4f_arr_t *vec4f_arr_mul(vec4f_arr_t *restrict out, const vec4f_arr_t *restrict a, const vec4f_arr_t *restrict b, size_t count);
 vec4f_arr_t *vec4f_arr_div(vec4f_arr_t *restrict out, const vec4f_arr_t *restrict a, const vec4f_arr_t *restrict b, size_t count);
 vec4f_arr_t *vec4f_arr_scale(vec4f_arr_t *restrict out, const vec4f_arr_t *restrict vec_array, float s, size_t count);
+vec4f_arr_t *vec4f_arr_lerp(vec4f_arr_t *restrict out, const vec4f_arr_t *restrict a, const vec4f_arr_t *restrict b, float t, size_t count);
 static inline vec4f_t vec4f_lerp(vec4f_t a, vec4f_t b, float t) {
-    __m128 va = _mm_loadu_ps(&a.x);
-    __m128 vb = _mm_loadu_ps(&b.x);
-    __m128 vt = _mm_set1_ps(t);
-
-    __m128 out = _mm_add_ps(va, _mm_mul_ps(_mm_sub_ps(vb, va), vt));
-
-    vec4f_t r;
-    _mm_storeu_ps(&r.x, out);
-    return r;
+    return VEC_INIT(vec4f_t,
+        fmaf(b.x - a.x, t, a.x),
+        fmaf(b.y - a.y, t, a.y),
+        fmaf(b.z - a.z, t, a.z),
+        fmaf(b.w - a.w, t, a.w)
+    );
 }
 
 static inline vec4f_t vec4f_scale(const vec4f_t a, const float t) {
-    const __m128 scale = _mm_set1_ps(t);
-    const __m128 va = _mm_loadu_ps(&a.x);
-
-    vec4f_t res;
-    _mm_storeu_ps(&res.x, _mm_mul_ps(va, scale));
-
-    return res;
+    return VEC_INIT(vec4f_t,
+        a.x * t,
+        a.y * t,
+        a.z * t,
+        a.w * t
+    );
 }
 
 #ifdef __cplusplus

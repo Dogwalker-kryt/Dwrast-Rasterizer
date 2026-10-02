@@ -19,7 +19,7 @@
 #define COLOR(r, g, b) (0xFF000000 | ((r) << 16) | ((g) << 8) | (b))
 
 typedef uint32_t color_t;
-
+typedef color_t argb_t;
 
 static inline const char *reset()   { return "\033[0m"; }
 static inline const char *red()     { return "\033[31m"; }
