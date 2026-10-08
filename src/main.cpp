@@ -27,7 +27,6 @@ int main(int argc, char** argv) {
     application_t state{};
     size_t frame_buffer_size_dyn;
 
-    // cli flags
     {
         if (argc < 2) { goto SKIP_FLAGS; }
 
@@ -36,10 +35,13 @@ int main(int argc, char** argv) {
         state.argv_ = argv;
         printf("%s[info]%s set state.argv to argv\n", BOLD_ANSI, RESET_ANSI);
 
+        char *argv_str = nullptr;
         for (uint8_t i = 0; i < argc; ++i) {
-            if (strncmp(argv[i], GTK_FLAG, 16) == 0) state.use_gtk_ = true;
+            argv_str = argv[i];
 
-            if (strncmp(argv[i], PPM_FLAG, 16) == 0) {
+            if (strncmp(argv_str, GTK_FLAG, 16) == 0) state.use_gtk_ = true;
+
+            if (strncmp(argv_str, PPM_FLAG, 16) == 0) {
                 if (i + 1 >= argc) {
                     printf("%s[ERROR]%s no filename entered\n", RED_ANSI, RESET_ANSI);
                     state.exit_code = -1;
@@ -52,7 +54,7 @@ int main(int argc, char** argv) {
                 i++;
             }
 
-            if (strncmp(argv[i], WIDTH_FLAG, 16) == 0 || strncmp(argv[i], SMALL_WIDTH_FLAG, 16) == 0) {
+            if (strncmp(argv_str, WIDTH_FLAG, 16) == 0 || strncmp(argv_str, SMALL_WIDTH_FLAG, 16) == 0) {
                 if (i + 1 >= argc) {
                     printf("%s[ERROR]%s no width argument entered\n", RED_ANSI, RESET_ANSI);
                     state.exit_code = -1;
@@ -64,7 +66,7 @@ int main(int argc, char** argv) {
                 i++;
             }
 
-            if (strncmp(argv[i], HEIGHT_FLAG, 16) == 0 || strncmp(argv[i], SMALL_HEIGHT_FLAG, 16) == 0) {
+            if (strncmp(argv_str, HEIGHT_FLAG, 16) == 0 || strncmp(argv_str, SMALL_HEIGHT_FLAG, 16) == 0) {
                 if (i + 1 >= argc) {
                     printf("%s[ERROR]%s no height argument entered\n", RED_ANSI, RESET_ANSI);
                     state.exit_code = -1;
@@ -76,7 +78,7 @@ int main(int argc, char** argv) {
                 i++;
             }
 
-            if (strncmp(argv[i], OBJ_FILE_FLAG, 16) == 0) {
+            if (strncmp(argv_str, OBJ_FILE_FLAG, 16) == 0) {
                 if (i + 1 >= argc) {
                     printf("%s[ERROR]%s no obj file path entered\n", RED_ANSI, RESET_ANSI);
                     state.exit_code = -1;
@@ -84,7 +86,7 @@ int main(int argc, char** argv) {
                 }
             }
 
-            if (strncmp(argv[i], DEPTH_BUFFER_FLAG, 16) == 0 || strncmp(argv[i], SMALL_DEPTH_BUFFER_FLAG, 16) == 0) {
+            if (strncmp(argv_str, DEPTH_BUFFER_FLAG, 16) == 0 || strncmp(argv_str, SMALL_DEPTH_BUFFER_FLAG, 16) == 0) {
                 state.use_depth_buffer = true;
             }
         }
@@ -115,6 +117,7 @@ SKIP_FLAGS:
 
         g_object_unref(state.gtk_app_);
         printf("%s[info]%s unrefed state.gtk_app_\n", BOLD_ANSI, RESET_ANSI);
+        
     } else {
         // rasterisation in no gtk mode
         draw_triangles(state.frame_buffer_);

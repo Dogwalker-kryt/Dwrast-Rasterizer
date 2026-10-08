@@ -36,105 +36,54 @@ inline void free_state(application_t *state) {
     }
 }
 
-
-// inline void draw_random_primitives(
-//     dwrast::FB2 *fb,
-//     const uint32_t primitive_count = 128,
-//     const uint32_t seed = std::random_device{}()) {
-//     if (!fb || !fb->buffer || fb->width == 0 || fb->heigth == 0) return;
-
-//     // Keep generated coordinates representable by the signed raster types.
-//     const uint32_t drawable_width = std::min(fb->width, static_cast<uint32_t>(INT32_MAX / 2));
-//     const uint32_t drawable_height = std::min(fb->heigth, static_cast<uint32_t>(INT32_MAX / 2));
-//     const int32_t min_x = -static_cast<int32_t>(drawable_width / 4);
-//     const int32_t min_y = -static_cast<int32_t>(drawable_height / 4);
-//     const int32_t max_x = static_cast<int32_t>(drawable_width + drawable_width / 4);
-//     const int32_t max_y = static_cast<int32_t>(drawable_height + drawable_height / 4);
-
-//     std::mt19937 rng(seed);
-//     std::uniform_int_distribution<int32_t> x_dist(min_x, max_x);
-//     std::uniform_int_distribution<int32_t> y_dist(min_y, max_y);
-//     std::uniform_int_distribution<uint32_t> channel_dist(0, 255);
-//     std::uniform_int_distribution<uint32_t> primitive_dist(0, 1);
-
-//     const auto random_color = [&]() {
-//         const uint32_t red = channel_dist(rng);
-//         const uint32_t green = channel_dist(rng);
-//         const uint32_t blue = channel_dist(rng);
-//         return 0xFF000000u |
-//             (red << 16) |
-//             (green << 8) |
-//             blue;
-//     };
-//     const auto random_point = [&]() {
-//         return rpixel_t{x_dist(rng), y_dist(rng)};
-//     };
-
-//     dwrast::clear_buf_FB2(fb, BLACK);
-
-//     for (uint32_t i = 0; i < primitive_count; ++i) {
-//         const color_t color = random_color();
-//         if (primitive_dist(rng) == 0) {
-//             dwrast::draw_line(fb, random_point(), random_point(), color);
-//             continue;
-//         }
-
-//         const rpixel_t p0 = random_point();
-//         const rpixel_t p1 = random_point();
-//         const rpixel_t p2 = random_point();
-//         triangle_t triangle = {
-//             {{static_cast<float>(p0.x), static_cast<float>(p0.y), 0.0f, 1.0f}, color},
-//             {{static_cast<float>(p1.x), static_cast<float>(p1.y), 0.0f, 1.0f}, color},
-//             {{static_cast<float>(p2.x), static_cast<float>(p2.y), 0.0f, 1.0f}, color}
-//         };
-
-//         dwrast::draw_triangle(fb, &triangle, color, random_color());
-//     }
-// }
 inline void draw_triangles(dwrast::FB2 *fb) {
-    dwrast::clear_buf_FB2(fb, BLACK);
-
     vertex_t v0 = {
-        {50.0f, 80.0f, 0.0f, 1.0f},
+        {600.0f, 180.0f, 0.0f, 1.0f},
+        WHITE
+    };
+
+    vertex_t v0_1 = {
+        {500.0f, 180.0f, 0.0f, 1.0f},
         WHITE
     };
 
     vertex_t v1 = {
-        {100.0f, 420.0f, 0.0f, 1.0f},
+        {500.0f, 260.0f, 0.0f, 1.0f},
         WHITE
     };
 
     vertex_t v2 = {
-        {500.0f, 420.0f, 0.0f, 1.0f},
+        {600.0f, 260.0f, 0.0f, 1.0f},
         WHITE
     };
 
-    triangle_t triangle = { v0, v1, v2 };
+    vertex_t master_point = {
+        {550.0f, 100.0f, 0.0f, 1.0f},
+        WHITE
+    };
 
-    auto start = std::chrono::steady_clock::now();
+    rpixel_t v0_rp = { v0.pos.x, v0.pos.y };
+    rpixel_t v01_rp = { v0_1.pos.x, v0_1.pos.y };
+    rpixel_t v1_rp = { v1.pos.x, v1.pos.y };
+    rpixel_t v2_rp = { v2.pos.x, v2.pos.y };
+    rpixel_t master_point_rp = { master_point.pos.x, master_point.pos.y };
 
-    // for (int i = 0; i < 1000; ++i) {
-        dwrast::draw_triangle(fb, &triangle, BLUE, BLACK);
-    // }
+    triangle_t tri1 = { master_point, v1, v0_1 };
+    triangle_t tri2 = { master_point, v1, v2 };
+    triangle_t tri3 = { master_point, v0_1, v0 };
+    triangle_t tri4 = { master_point, v2, v0 };
 
-    auto end = std::chrono::steady_clock::now();
-
-    double seconds = std::chrono::duration<double>(end - start).count();
-
-    std::cout << "Time: " << seconds << " s\n";
+    dwrast::fill_triangle_avx2(fb, &tri3, RED);
+    dwrast::fill_triangle_avx2(fb, &tri1, WHITE);
+    dwrast::fill_triangle_avx2(fb, &tri2, GREEN);
+    dwrast::fill_triangle_avx2(fb, &tri4, BLUE);
 }
 
-// inline void draw_triangles(dwrast::FB2 *fb) {
-//     // The final framebuffer is consumed by PPM export and/or GTK, so the
-//     // randomized rasterization writes are observable and remain meaningful.
-//     draw_random_primitives(fb);
-// }
-
 inline void *rasterize_frame(application_t *state) {
-    // here comes
+    
 }
 
 inline void render_frame_gtk(application_t *state) {
-    draw_triangles(state->frame_buffer_);
+
     gtk_widget_queue_draw(state->window_);
 }
