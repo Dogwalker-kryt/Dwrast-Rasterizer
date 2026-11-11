@@ -84,6 +84,6 @@ inline void *rasterize_frame(application_t *state) {
 }
 
 inline void render_frame_gtk(application_t *state) {
-
+    rasterize_frame(state);
     gtk_widget_queue_draw(state->window_);
 }
