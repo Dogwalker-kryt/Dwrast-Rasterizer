@@ -63,9 +63,9 @@ typedef struct rpixel_t {
     int32_t y;
 } rpixel_t; 
 
-inline vec2f_t from_vec2_arr(const vec2f_arr_t *arr, size_t n);
-inline vec3f_t from_vec3_arr(const vec3f_arr_t *arr, size_t n);
-inline vec4f_t from_vec4_arr(const vec4f_arr_t *arr, size_t n);
+vec2f_t from_vec2_arr(const vec2f_arr_t *arr, size_t n);
+vec3f_t from_vec3_arr(const vec3f_arr_t *arr, size_t n);
+vec4f_t from_vec4_arr(const vec4f_arr_t *arr, size_t n);
 
 vec2f_t *vec2f_arr_to_aos(const vec2f_arr_t *restrict arr, vec2f_t *restrict out, size_t count);
 vec3f_t *vec3f_arr_to_aos(const vec3f_arr_t *restrict arr, vec3f_t *restrict out, size_t count);

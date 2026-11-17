@@ -5,11 +5,16 @@
 #include "rasterizer/dwrast_rasterizer.hpp"
 #include "gtkui/ui.hpp"
 #include "application.hpp"
+#include "log.h"
+
+#ifndef DWRAST_VERSION
+#define DWRAST_VERSION "dev"
+#endif
 
 using namespace dwrast;
 
 constexpr const char* valid_flags[16] = {
-    "-gtk" , "-ppm", "-width", "-height", "-w", "-h", "-obj", "-depth", "-z"
+    "-gtk" , "-ppm", "-width", "-height", "-w", "-h", "-obj", "-depth", "-z", "-bench"
 };
 
 #define GTK_FLAG valid_flags[0]
@@ -21,9 +26,10 @@ constexpr const char* valid_flags[16] = {
 #define OBJ_FILE_FLAG valid_flags[6]
 #define DEPTH_BUFFER_FLAG valid_flags[7]
 #define SMALL_DEPTH_BUFFER_FLAG valid_flags[8]
+#define BENCH_FLAG valid_flags[9]
 
 int main(int argc, char** argv) {
-    printf("%sInitializing Rasterizer...%s\n", BOLD_ANSI, RESET_ANSI);
+    log_header(DWRAST_VERSION);
     application_t state{};
     size_t frame_buffer_size_dyn;
 
@@ -31,9 +37,8 @@ int main(int argc, char** argv) {
         if (argc < 2) { goto SKIP_FLAGS; }
 
         state.argc_ = argc;
-        printf("%s[info]%s set %sargc:%d%s arguments to state\n", BOLD_ANSI, RESET_ANSI, BOLD_ANSI, argc, RESET_ANSI);
         state.argv_ = argv;
-        printf("%s[info]%s set state.argv to argv\n", BOLD_ANSI, RESET_ANSI);
+        log_debug("set state.argc_ = %d and state.argv_", argc);
 
         char *argv_str = nullptr;
         for (uint8_t i = 0; i < argc; ++i) {
@@ -43,14 +48,14 @@ int main(int argc, char** argv) {
 
             if (strncmp(argv_str, PPM_FLAG, 16) == 0) {
                 if (i + 1 >= argc) {
-                    printf("%s[ERROR]%s no filename entered\n", RED_ANSI, RESET_ANSI);
+                    log_error(ANSI_BOLD "-ppm" ANSI_RESET " needs a file name");
                     state.exit_code = -1;
                     goto EXIT;
                 }
 
                 state.write_ppm = true;
                 if (snprintf(state.ppm_file_name, sizeof(state.ppm_file_name), "%s", argv[i + 1]) >= static_cast<int>(sizeof(state.ppm_file_name))) {
-                    printf("%s[ERROR]%s ppm filename is longer than %zu chars\n", RED_ANSI, RESET_ANSI, sizeof(state.ppm_file_name) - 1);
+                    log_error("ppm file name is longer than " ANSI_BOLD "%zu" ANSI_RESET " chars", sizeof(state.ppm_file_name) - 1);
                     state.exit_code = -1;
                     goto EXIT;
                 }
@@ -59,7 +64,7 @@ int main(int argc, char** argv) {
 
             if (strncmp(argv_str, WIDTH_FLAG, 16) == 0 || strncmp(argv_str, SMALL_WIDTH_FLAG, 16) == 0) {
                 if (i + 1 >= argc) {
-                    printf("%s[ERROR]%s no width argument entered\n", RED_ANSI, RESET_ANSI);
+                    log_error(ANSI_BOLD "-width / -w" ANSI_RESET " needs a value");
                     state.exit_code = -1;
                     goto EXIT;
                 }
@@ -71,7 +76,7 @@ int main(int argc, char** argv) {
 
             if (strncmp(argv_str, HEIGHT_FLAG, 16) == 0 || strncmp(argv_str, SMALL_HEIGHT_FLAG, 16) == 0) {
                 if (i + 1 >= argc) {
-                    printf("%s[ERROR]%s no height argument entered\n", RED_ANSI, RESET_ANSI);
+                    log_error(ANSI_BOLD "-height / -h" ANSI_RESET " needs a value");
                     state.exit_code = -1;
                     goto EXIT;
                 }
@@ -83,7 +88,7 @@ int main(int argc, char** argv) {
 
             if (strncmp(argv_str, OBJ_FILE_FLAG, 16) == 0) {
                 if (i + 1 >= argc) {
-                    printf("%s[ERROR]%s no obj file path entered\n", RED_ANSI, RESET_ANSI);
+                    log_error(ANSI_BOLD "-obj" ANSI_RESET " needs a file path");
                     state.exit_code = -1;
                     goto EXIT;
                 }
@@ -95,6 +100,20 @@ int main(int argc, char** argv) {
             if (strncmp(argv_str, DEPTH_BUFFER_FLAG, 16) == 0 || strncmp(argv_str, SMALL_DEPTH_BUFFER_FLAG, 16) == 0) {
                 state.use_depth_buffer = true;
             }
+
+            if (strncmp(argv_str, BENCH_FLAG, 16) == 0) {
+                char *endptr = nullptr;
+                const unsigned long frames = (i + 1 < argc) ? strtoul(argv[i + 1], &endptr, 10) : 0;
+
+                if (i + 1 >= argc || endptr == argv[i + 1] || *endptr != '\0' || frames == 0 || frames > 1000000) {
+                    log_error(ANSI_BOLD "-bench" ANSI_RESET " needs a frame count between " ANSI_BOLD "1" ANSI_RESET " and " ANSI_BOLD "1000000" ANSI_RESET);
+                    state.exit_code = -1;
+                    goto EXIT;
+                }
+
+                state.bench_frames = static_cast<uint32_t>(frames);
+                i++;
+            }
         }
        
     } 
@@ -104,11 +123,13 @@ SKIP_FLAGS:
     frame_buffer_size_dyn = state.width * state.heigth;
 
     dwrast::clear_buf_FB2(state.frame_buffer_, BLACK);
-    printf("%s[info]%s allocated %sbytes:%lu%s Framebuffer with %swidth:%lu heigth:%lu%s\n", BOLD_ANSI, RESET_ANSI, BOLD_ANSI, frame_buffer_size_dyn, RESET_ANSI, BOLD_ANSI, state.width, state.heigth, RESET_ANSI);
+    log_info("framebuffer   " ANSI_BOLD "%lu × %lu" ANSI_RESET ANSI_GRAY "   %zu px · %.1f MiB" ANSI_RESET,
+             state.width, state.heigth, frame_buffer_size_dyn, frame_buffer_size_dyn * sizeof(uint32_t) / (1024.0 * 1024.0));
 
     if (state.use_depth_buffer) {
         state.depth_buffer = dwrast::create_DB(state.width, state.heigth);
-        printf("%s[info]%s allocated DB with same params as FB2\n", BOLD_ANSI, RESET_ANSI);
+        log_info("depth buffer  " ANSI_BOLD ANSI_GREEN "on" ANSI_RESET ANSI_GRAY "   %.1f MiB" ANSI_RESET,
+                 frame_buffer_size_dyn * sizeof(float) / (1024.0 * 1024.0));
     }
 
     // must happen before gtk starts, gtk sets the locale and strtof would break on "1.5" with e.g. de_DE
@@ -120,29 +141,35 @@ SKIP_FLAGS:
         }
 
         state.has_model = true;
+        state.triangle_count = count_model_triangles(&state.model);
         state.model_matrix = fit_model_matrix(&state.model);
         state.camera.distance = fit_camera_distance(&state.camera, static_cast<float>(state.width) / static_cast<float>(state.heigth));
-        printf("%s[info]%s loaded %s%s%s with %svertexes:%zu faces:%zu%s\n", BOLD_ANSI, RESET_ANSI,
-               BOLD_ANSI, state.obj_file_path, RESET_ANSI,
-               BOLD_ANSI, state.model.vertex_count, state.model.face_count, RESET_ANSI);
+        log_info("model         " ANSI_BOLD "%s" ANSI_RESET, state.obj_file_path);
+        log_info("              " ANSI_BOLD "%zu" ANSI_RESET ANSI_GRAY " vertexes · " ANSI_RESET
+                 ANSI_BOLD "%zu" ANSI_RESET ANSI_GRAY " faces · " ANSI_RESET
+                 ANSI_BOLD "%zu" ANSI_RESET ANSI_GRAY " triangles" ANSI_RESET,
+                 state.model.vertex_count, state.model.face_count, state.triangle_count);
 
         if (!state.use_depth_buffer) {
-            printf("%s[WARN]%s no depth buffer (-depth / -z), faces will be drawn in file order and overlap wrong\n", YELLOW_ANSI, RESET_ANSI);
+            log_warn("no depth buffer " ANSI_GRAY "(-depth / -z)" ANSI_RESET ", faces are drawn in file order and will overlap wrong");
         }
     }
 
+    if (state.bench_frames) run_benchmark(&state);
+
     if (state.use_gtk_) {
-        printf("%sInitializing GTK Window...%s\n", BOLD_ANSI, RESET_ANSI);
+        log_gtk("opening window " ANSI_GRAY "(close it or press ctrl+c to quit)" ANSI_RESET);
 
         state.gtk_app_ = gtk_application_new("com.example.cpurasterizer", G_APPLICATION_DEFAULT_FLAGS);
-        printf("%s[info]%s created new gtk application\n", BOLD_ANSI, RESET_ANSI);
+        log_debug("created gtk application");
 
         g_signal_connect(state.gtk_app_, "activate", G_CALLBACK(activate), &state);
         (void)g_application_run(G_APPLICATION(state.gtk_app_), 0, NULL);
-        printf("%s[info]%s connected callback and started gtk application\n", BOLD_ANSI, RESET_ANSI);
+        log_debug("gtk application finished");
+        print_realtime_stats(&state);
 
         g_object_unref(state.gtk_app_);
-        printf("%s[info]%s unrefed state.gtk_app_\n", BOLD_ANSI, RESET_ANSI);
+        log_debug("unrefed state.gtk_app_");
         
     } else {
         // rasterisation in no gtk mode
@@ -151,16 +178,13 @@ SKIP_FLAGS:
 
     if (state.write_ppm) {
         const bool ok = dwrast::write_ppm_FB2(state.frame_buffer_, state.ppm_file_name);
-        printf("%s[info]%s writing PPM output to %s%s%s -> %s%s %s\n",
-               BOLD_ANSI, RESET_ANSI,
-               BOLD_ANSI, state.ppm_file_name, RESET_ANSI,
-               ok ? GREEN_ANSI : RED_ANSI,
-               ok ? "success" : "failed", RESET_ANSI);
+        if (ok) log_ok("wrote ppm " ANSI_BOLD "%s" ANSI_RESET, state.ppm_file_name);
+        else log_error("could not write ppm " ANSI_BOLD "%s" ANSI_RESET, state.ppm_file_name);
     }
 
     EXIT:
         free_state(&state);
-        printf("%s[EXIT]%s exited with %scode:%d%s\n",BOLD_ANSI, RESET_ANSI, BOLD_ANSI, state.exit_code, RESET_ANSI);
+        log_exit("exited with code " ANSI_RESET ANSI_BOLD "%s%d" ANSI_RESET, state.exit_code == 0 ? ANSI_GREEN : ANSI_RED, state.exit_code);
         return state.exit_code;
 }
 

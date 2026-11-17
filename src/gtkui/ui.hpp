@@ -12,3 +12,8 @@ void draw(GtkDrawingArea* area, cairo_t* cr, int width, int height, gpointer dat
 inline void draw_triangle(dwrast::FB2 *fb, const triangle_t *triangle, const color_t fill_color, const color_t outline_color);
 
 void activate(GtkApplication *app, gpointer);
+
+/**
+ * @brief prints fps / raster time of the real time gtk session, does nothing if no frame was rendered
+ */
+void print_realtime_stats(const application_t *state);

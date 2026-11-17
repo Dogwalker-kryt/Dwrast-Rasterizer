@@ -14,15 +14,15 @@ static inline float hprod8_ps(const __m256 values) {
     return _mm_cvtss_f32(_mm256_castps256_ps128(total));
 }
 
-inline vec2f_t from_vec2_arr(const vec2f_arr_t *arr, const size_t n) {
+vec2f_t from_vec2_arr(const vec2f_arr_t *arr, const size_t n) {
     return (vec2f_t){arr->x[n], arr->y[n]};
 }
 
-inline vec3f_t from_vec3_arr(const vec3f_arr_t *arr, size_t n) {
+vec3f_t from_vec3_arr(const vec3f_arr_t *arr, size_t n) {
     return (vec3f_t){arr->x[n], arr->y[n], arr->z[n]};
 }
 
-inline vec4f_t from_vec4_arr(const vec4f_arr_t *arr, size_t n) {
+vec4f_t from_vec4_arr(const vec4f_arr_t *arr, size_t n) {
     return (vec4f_t){arr->x[n], arr->y[n], arr->z[n], arr->w[n]};
 }
 

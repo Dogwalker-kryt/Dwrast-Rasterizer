@@ -16,13 +16,14 @@ DwRast is an in-progress graphics project for experimenting with the fundamental
 - Wavefront OBJ loading (`v`, `vt`, `vn`, `f` with `v`, `v/vt`, `v//vn`, `v/vt/vn` and negative indices; polygons are fan-triangulated)
 - Perspective projection with an orbit camera; models are centered and scaled to fit the view automatically
 - Two-sided flat shading per face, using OBJ vertex colors (`v x y z r g b`) when present
+- Real-time GTK preview that spins the model and shows FPS and raster time, plus a headless `-bench` mode
 - GTK4 window for displaying the framebuffer
 - PPM (P6) output for inspecting rendered images with common image tools
 - Adjustable framebuffer dimensions from the command line
 
 ## Current limitations
 
-Triangles that cross the camera's near plane are skipped rather than clipped. Texture coordinates and normals are parsed but not used for rendering yet, materials (`mtllib`/`usemtl`) are ignored, and the camera can't be moved interactively. Texture mapping and a stable public API are not implemented yet. The rasterizer is still being developed, so output and performance may change.
+Triangles that cross the camera's near plane are skipped rather than clipped. Texture coordinates and normals are parsed but not used for rendering yet, materials (`mtllib`/`usemtl`) are ignored, and the camera can't be controlled interactively yet; it only spins automatically. Texture mapping and a stable public API are not implemented yet. The rasterizer is still being developed, so output and performance may change.
 
 ## Build requirements
 
@@ -44,8 +45,33 @@ sudo apt install build-essential cmake ninja-build pkg-config libgtk-4-dev
 ```sh
 git clone https://github.com/Dogwalker-kryt/cpu-rasterizer.git
 cd cpu-rasterizer
+make
+```
+
+The Makefile is a thin wrapper around CMake. You can also call CMake directly:
+
+```sh
 cmake -S . -B build -G Ninja
 cmake --build build
+```
+
+Useful `make` targets:
+
+| Target | Description |
+| --- | --- |
+| `make` | Configure (if needed) and build into `build/`. |
+| `make clean` | Delete `build/` and `build-asan/`. |
+| `make rebuild` | Clean, then build. |
+| `make gtk` | Open the real-time preview of `MODEL` with the depth buffer. |
+| `make bench` | Run the headless benchmark on `MODEL`. |
+| `make models` | Generate the test models (torus, cube, 100k and 400k triangle knots) into `models/`. |
+| `make asan` | Build with AddressSanitizer and UBSan into `build-asan/`. |
+
+`make gtk` and `make bench` generate their test model if it doesn't exist yet. Variables: `MODEL` (default `models/knot_100k.obj`), `FRAMES` (default 200), `W`/`H` for the framebuffer size, and `ARGS` for extra flags:
+
+```sh
+make bench MODEL=models/knot_400k.obj W=1920 H=1080 FRAMES=100
+make gtk MODEL=path/to/your.obj
 ```
 
 The executable is `build/dwrast_rasterizer`.
@@ -72,6 +98,19 @@ Render an OBJ model with the depth buffer enabled:
 ./build/dwrast_rasterizer -obj model.obj -depth -ppm model.ppm
 ```
 
+Open a real-time preview: a loaded model spins continuously and the window title shows FPS, the rasterizer's own time per frame, and the triangle count. Press Ctrl+C in the terminal or close the window to quit; a summary is printed on exit:
+
+```sh
+./build/dwrast_rasterizer -gtk -obj model.obj -depth
+```
+
+Benchmark without a window. This renders N frames during one full camera turn and prints average, median, min, max, and p99 frame times plus triangles per second:
+
+```sh
+./build/dwrast_rasterizer -obj model.obj -depth -bench 200
+./build/dwrast_rasterizer -obj model.obj -depth -w 1920 -h 1080 -bench 100
+```
+
 Open the preview and save the same rendered image:
 
 ```sh
@@ -88,16 +127,19 @@ Open the preview and save the same rendered image:
 | `-height <pixels>` | `-h <pixels>` | Set the framebuffer height. |
 | `-depth` | `-z` | Activate the depth buffer for the current session. |
 | `-obj <path>` | — | Load and render a Wavefront .obj model instead of the demo. Use it with `-depth`, otherwise faces overlap incorrectly. |
+| `-bench <frames>` | — | Render the given number of frames headlessly while the camera turns once, then print frame-time statistics. |
 
 The GTK preview requires a graphical session. PPM output can be generated without opening a window. The output is a binary P6 pixmap and can be opened or converted with standard image utilities.
 
 ## Project layout
 
 ```text
+scripts/
+└── gen_test_models.py              # Generates the test OBJ models
 src/
 ├── application.hpp                 # Camera, model drawing, demo scene and frame rendering
 ├── main.cpp                        # CLI parsing and application startup
-├── gtkui/                          # GTK4 framebuffer preview
+├── gtkui/                          # GTK4 framebuffer preview and real-time loop
 ├── obj_parser/                     # Wavefront OBJ loader
 └── rasterizer/
     ├── Framebuffer/                # Framebuffer storage and PPM writing

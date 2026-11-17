@@ -21,6 +21,11 @@ add_executable(dwrast_rasterizer
     src/gtkui/ui.cpp
 )
 
+target_compile_definitions(dwrast_rasterizer
+    PRIVATE
+        DWRAST_VERSION="${PROJECT_VERSION}"
+)
+
 target_link_libraries(dwrast_rasterizer
     PRIVATE
         PkgConfig::GTK4

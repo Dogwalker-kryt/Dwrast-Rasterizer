@@ -1,4 +1,6 @@
 #include "obj_parser.h"
+#include "../log.h"
+#include <errno.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <math.h>
@@ -145,7 +147,7 @@ bool obj_parse_file(FILE *file, obj_model *model) {
 
         const size_t len = strlen(line);
         if (len == sizeof(line) - 1 && line[len - 1] != '\n' && !feof(file)) {
-            printf("%s[ERROR]%s obj line %zu is longer than %d chars\n", RED_ANSI, RESET_ANSI, line_number, OBJ_LINE_MAX - 1);
+            log_error("obj line " ANSI_BOLD "%zu" ANSI_RESET " is longer than " ANSI_BOLD "%d" ANSI_RESET " chars", line_number, OBJ_LINE_MAX - 1);
             return false;
         }
 
@@ -202,19 +204,19 @@ bool obj_parse_file(FILE *file, obj_model *model) {
     }
 
     if (ferror(file)) {
-        printf("%s[ERROR]%s failed reading obj file\n", RED_ANSI, RESET_ANSI);
+        log_error("failed reading obj file");
         return false;
     }
 
     return true;
 
 PARSE_ERROR:
-    printf("%s[ERROR]%s malformed obj at line %zu: %s", RED_ANSI, RESET_ANSI, line_number, line);
-    if (line[0] == '\0' || line[strlen(line) - 1] != '\n') putchar('\n');
+    line[strcspn(line, "\r\n")] = '\0';
+    log_error("malformed obj " ANSI_GRAY "line %zu:" ANSI_RESET " " ANSI_BOLD "%s" ANSI_RESET, line_number, line);
     return false;
 
 OOM:
-    printf("%s[ERROR]%s out of memory while parsing obj at line %zu\n", RED_ANSI, RESET_ANSI, line_number);
+    log_error("out of memory while parsing obj " ANSI_GRAY "line %zu" ANSI_RESET, line_number);
     return false;
 }
 
@@ -222,7 +224,7 @@ bool obj_load(const char *path, obj_model *model) {
     FILE *file = fopen(path, "r");
     if (!file) {
         memset(model, 0, sizeof(*model));
-        printf("%s[ERROR]%s could not open obj file %s%s%s\n", RED_ANSI, RESET_ANSI, BOLD_ANSI, path, RESET_ANSI);
+        log_error("could not open obj file " ANSI_BOLD "%s" ANSI_RESET ANSI_GRAY " (%s)" ANSI_RESET, path, strerror(errno));
         return false;
     }
 
