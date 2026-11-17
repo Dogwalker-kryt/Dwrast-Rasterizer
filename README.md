@@ -2,7 +2,7 @@
 
 **A small CPU software rasterizer built from scratch in C++17.**
 
-DwRast is an in-progress graphics project for experimenting with the fundamentals of rasterization: turning triangle geometry into pixels, storing those pixels in a framebuffer, and viewing or exporting the result. It currently renders a simple triangle demo, with a GTK4 preview and binary PPM image output.
+DwRast is an in-progress graphics project for experimenting with the fundamentals of rasterization: turning triangle geometry into pixels, storing those pixels in a framebuffer, and viewing or exporting the result. It can render Wavefront OBJ models with a perspective camera, flat shading and a depth buffer, or a simple built-in triangle demo, with a GTK4 preview and binary PPM image output.
 
 > **Status: work in progress.** This is an experimental learning project, not a complete 3D renderer or a stable graphics library. Interfaces and features may change.
 
@@ -12,13 +12,17 @@ DwRast is an in-progress graphics project for experimenting with the fundamental
 - Edge-function point-in-triangle testing, including either triangle winding
 - Framebuffer clipping for triangle fill bounds
 - An AVX2-assisted triangle-fill path with per-pixel handling for partial blocks
+- Depth buffer with an AVX2 depth-tested triangle fill
+- Wavefront OBJ loading (`v`, `vt`, `vn`, `f` with `v`, `v/vt`, `v//vn`, `v/vt/vn` and negative indices; polygons are fan-triangulated)
+- Perspective projection with an orbit camera; models are centered and scaled to fit the view automatically
+- Two-sided flat shading per face, using OBJ vertex colors (`v x y z r g b`) when present
 - GTK4 window for displaying the framebuffer
 - PPM (P6) output for inspecting rendered images with common image tools
 - Adjustable framebuffer dimensions from the command line
 
 ## Current limitations
 
-The application currently draws a built-in demo; it does not load models or accept arbitrary scene geometry. A 3D camera/projection pipeline, depth buffer, texture mapping, and a stable public API are not implemented yet. The rasterizer is still being developed, so output and performance may change.
+Triangles that cross the camera's near plane are skipped rather than clipped. Texture coordinates and normals are parsed but not used for rendering yet, materials (`mtllib`/`usemtl`) are ignored, and the camera can't be moved interactively. Texture mapping and a stable public API are not implemented yet. The rasterizer is still being developed, so output and performance may change.
 
 ## Build requirements
 
@@ -62,6 +66,12 @@ Render at a custom size and save the framebuffer to a PPM file:
 ./build/dwrast_rasterizer -width 800 -height 600 -ppm output.ppm
 ```
 
+Render an OBJ model with the depth buffer enabled:
+
+```sh
+./build/dwrast_rasterizer -obj model.obj -depth -ppm model.ppm
+```
+
 Open the preview and save the same rendered image:
 
 ```sh
@@ -76,8 +86,8 @@ Open the preview and save the same rendered image:
 | `-ppm <path>` | — | Write the rendered framebuffer to a PPM file. |
 | `-width <pixels>` | `-w <pixels>` | Set the framebuffer width. |
 | `-height <pixels>` | `-h <pixels>` | Set the framebuffer height. |
-| `-depth` | `-z` | Avticate the depth-buffer for the current session |
-| `-obj <path>` | — | Take a .obj file as input for rasterisation |
+| `-depth` | `-z` | Activate the depth buffer for the current session. |
+| `-obj <path>` | — | Load and render a Wavefront .obj model instead of the demo. Use it with `-depth`, otherwise faces overlap incorrectly. |
 
 The GTK preview requires a graphical session. PPM output can be generated without opening a window. The output is a binary P6 pixmap and can be opened or converted with standard image utilities.
 
@@ -85,20 +95,21 @@ The GTK preview requires a graphical session. PPM output can be generated withou
 
 ```text
 src/
-├── application.hpp                 # Demo scene and frame rendering
+├── application.hpp                 # Camera, model drawing, demo scene and frame rendering
 ├── main.cpp                        # CLI parsing and application startup
 ├── gtkui/                          # GTK4 framebuffer preview
+├── obj_parser/                     # Wavefront OBJ loader
 └── rasterizer/
     ├── Framebuffer/                # Framebuffer storage and PPM writing
     ├── boundingbox/                # Triangle bounds
-    ├── math/                       # Small math helpers
+    ├── math/                       # Small math helpers and 4x4 matrices
     ├── vector/                     # Vector and triangle types/utilities
     └── dwrast_rasterizer.hpp       # Line and triangle rasterization
 ```
 
 ## Development direction
 
-Potential next steps for the project include color interpolation, a depth buffer, a transform and camera pipeline, mesh loading, and texture mapping. These are ideas for future work—not features available in the current build.
+Potential next steps for the project include near-plane clipping, smooth (per-vertex normal) shading, color interpolation, an interactive camera in the GTK preview, and texture mapping. These are ideas for future work—not features available in the current build.
 
 ## Contributing
 

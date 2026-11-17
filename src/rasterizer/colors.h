@@ -21,6 +21,19 @@
 typedef uint32_t color_t;
 typedef color_t argb_t;
 
+/**
+ * @brief multiplies r, g and b by intensity (clamped to [0, 1]), alpha stays the same
+ */
+static inline color_t color_scale(const color_t color, float intensity) {
+    intensity = intensity < 0.0f ? 0.0f : (intensity > 1.0f ? 1.0f : intensity);
+
+    const uint32_t r = (uint32_t)((float)((color >> 16) & 0xFF) * intensity + 0.5f);
+    const uint32_t g = (uint32_t)((float)((color >> 8) & 0xFF) * intensity + 0.5f);
+    const uint32_t b = (uint32_t)((float)(color & 0xFF) * intensity + 0.5f);
+
+    return (color & 0xFF000000) | (r << 16) | (g << 8) | b;
+}
+
 static inline const char *reset()   { return "\033[0m"; }
 static inline const char *red()     { return "\033[31m"; }
 static inline const char *green()   { return "\033[32m"; }

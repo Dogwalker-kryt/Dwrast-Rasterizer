@@ -137,6 +137,21 @@ namespace dwrast {
         simd::fill_triangle_8x8(fb, triangle, bbox, color);
     }
 
+    /**
+     * @brief fills triangle with color using AVX2, only where it is closer than the depth buffer
+     * @param fb framebuffer
+     * @param db depth buffer, same size as fb
+     * @param triangle screen space x, y and NDC depth in z
+     * @param color the color
+     * @warning every parameter must be validated by the caller, the function it self doesnt check them
+     */
+    static inline void fill_triangle_depth_avx2(dwrast::FB2 *fb, dwrast::DB *db, triangle_t *triangle, const color_t color) {
+        bounding_box_t bbox = calculate_boundingbox(triangle);
+        if (!clip_triangle_bbox(fb, &bbox)) return;
+
+        simd::fill_triangle_8x8_depth(fb, db, triangle, bbox, color);
+    }
+
     static inline void draw_triangle(dwrast::FB2 *fb, triangle_t *triangle, color_t fill_color, color_t outline_color) {
         if (!fb || !fb->buffer || !triangle) return;
         fill_triangle_avx2(fb, triangle, fill_color);

@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <immintrin.h>
 #include <cstdio>
+#include <algorithm>
 #include <limits>
 #include <memory>
 #include <new>
@@ -193,19 +194,38 @@ typedef struct DB {
 
 } DB;
 
+/**
+ * @brief depth values are NDC z after the perspective divide, smaller = closer
+ */
 static inline DB *create_DB(const uint32_t width, const uint32_t height) {
-    DB *db = new DB();
+    const size_t pixel_count = static_cast<size_t>(width) * height;
+    std::unique_ptr<DB> db(new DB{});
 
     db->height = height;
     db->width = width;
-    db->buffer = new float[width * height];
+    db->buffer = new float[pixel_count];
+    std::fill(db->buffer, db->buffer + pixel_count, std::numeric_limits<float>::infinity());
 
-    return db;
+    return db.release();
 }
 
 __always_inline void destroy_DB(DB *db) {
-    delete[] db->buffer;
+    if (db) delete[] db->buffer;
     delete db;
+}
+
+/**
+ * @brief resets every depth value, use infinity so the first triangle always passes
+ */
+__always_inline void clear_DB(DB *db, const float depth) noexcept {
+    const size_t total_pixels = static_cast<size_t>(db->width) * db->height;
+    const __m256 depth_vec = _mm256_set1_ps(depth);
+    size_t i{0};
+
+    for (; i + 8 <= total_pixels; i += 8) {
+        _mm256_storeu_ps(&db->buffer[i], depth_vec);
+    }
+    for (; i < total_pixels; ++i) db->buffer[i] = depth;
 }
 
 

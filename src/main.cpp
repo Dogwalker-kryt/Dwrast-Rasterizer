@@ -49,8 +49,11 @@ int main(int argc, char** argv) {
                 }
 
                 state.write_ppm = true;
-                memcpy(&state.ppm_file_name, argv[i + 1], sizeof(state.ppm_file_name));
-                state.ppm_file_name[sizeof(state.ppm_file_name) - 1] = '\0';
+                if (snprintf(state.ppm_file_name, sizeof(state.ppm_file_name), "%s", argv[i + 1]) >= static_cast<int>(sizeof(state.ppm_file_name))) {
+                    printf("%s[ERROR]%s ppm filename is longer than %zu chars\n", RED_ANSI, RESET_ANSI, sizeof(state.ppm_file_name) - 1);
+                    state.exit_code = -1;
+                    goto EXIT;
+                }
                 i++;
             }
 
@@ -84,6 +87,9 @@ int main(int argc, char** argv) {
                     state.exit_code = -1;
                     goto EXIT;
                 }
+
+                state.obj_file_path = argv[i + 1];
+                i++;
             }
 
             if (strncmp(argv_str, DEPTH_BUFFER_FLAG, 16) == 0 || strncmp(argv_str, SMALL_DEPTH_BUFFER_FLAG, 16) == 0) {
@@ -105,6 +111,26 @@ SKIP_FLAGS:
         printf("%s[info]%s allocated DB with same params as FB2\n", BOLD_ANSI, RESET_ANSI);
     }
 
+    // must happen before gtk starts, gtk sets the locale and strtof would break on "1.5" with e.g. de_DE
+    if (state.obj_file_path) {
+        if (!obj_load(state.obj_file_path, &state.model)) {
+            obj_free(&state.model);
+            state.exit_code = -1;
+            goto EXIT;
+        }
+
+        state.has_model = true;
+        state.model_matrix = fit_model_matrix(&state.model);
+        state.camera.distance = fit_camera_distance(&state.camera, static_cast<float>(state.width) / static_cast<float>(state.heigth));
+        printf("%s[info]%s loaded %s%s%s with %svertexes:%zu faces:%zu%s\n", BOLD_ANSI, RESET_ANSI,
+               BOLD_ANSI, state.obj_file_path, RESET_ANSI,
+               BOLD_ANSI, state.model.vertex_count, state.model.face_count, RESET_ANSI);
+
+        if (!state.use_depth_buffer) {
+            printf("%s[WARN]%s no depth buffer (-depth / -z), faces will be drawn in file order and overlap wrong\n", YELLOW_ANSI, RESET_ANSI);
+        }
+    }
+
     if (state.use_gtk_) {
         printf("%sInitializing GTK Window...%s\n", BOLD_ANSI, RESET_ANSI);
 
@@ -120,7 +146,7 @@ SKIP_FLAGS:
         
     } else {
         // rasterisation in no gtk mode
-        draw_triangles(state.frame_buffer_);
+        rasterize_frame(&state);
     }
 
     if (state.write_ppm) {

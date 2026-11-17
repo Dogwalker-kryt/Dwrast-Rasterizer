@@ -17,6 +17,7 @@ pkg_check_modules(GTK4 REQUIRED IMPORTED_TARGET gtk4)
 add_executable(dwrast_rasterizer
     src/main.cpp
     src/rasterizer/vector/vec.c
+    src/obj_parser/obj_parser.c
     src/gtkui/ui.cpp
 )
 

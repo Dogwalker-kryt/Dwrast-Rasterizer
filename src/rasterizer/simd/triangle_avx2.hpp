@@ -133,4 +133,97 @@ __always_inline void fill_triangle_8x8(FB2 *fb, const triangle_t *triangle, cons
     }
 }
 
+/**
+ * @brief same as fill_triangle_8x8 but with depth testing against db
+ * @note triangle pos.z must already be the NDC depth (z / w), it gets linearly
+ *       interpolated in screen space which is correct for z / w
+ * @warning db must have the same width and heigth as fb
+ */
+__always_inline void fill_triangle_8x8_depth(FB2 *fb, DB *db, const triangle_t *triangle, const bounding_box_t bbox, const color_t color) {
+    const vec2f_t a{triangle->v0.pos.x, triangle->v0.pos.y};
+    const vec2f_t b{triangle->v1.pos.x, triangle->v1.pos.y};
+    const vec2f_t c{triangle->v2.pos.x, triangle->v2.pos.y};
+
+    const float area = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+    if (area == 0.0f) return;
+
+    const edge_plane_t edges[3] = {
+        make_edge_plane(a, b),
+        make_edge_plane(b, c),
+        make_edge_plane(c, a)
+    };
+
+    // edge a->b is the barycentric weight of c, b->c of a and c->a of b
+    const float inv_area = 1.0f / area;
+    const __m256 z_weight_c = _mm256_set1_ps(triangle->v2.pos.z * inv_area);
+    const __m256 z_weight_a = _mm256_set1_ps(triangle->v0.pos.z * inv_area);
+    const __m256 z_weight_b = _mm256_set1_ps(triangle->v1.pos.z * inv_area);
+
+    const __m256 offsets = _mm256_setr_ps(0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f);
+
+    const __m256 x_steps[3] = {
+        _mm256_mul_ps(offsets, _mm256_set1_ps(edges[0].x_step)),
+        _mm256_mul_ps(offsets, _mm256_set1_ps(edges[1].x_step)),
+        _mm256_mul_ps(offsets, _mm256_set1_ps(edges[2].x_step))
+    };
+
+    const __m256 row_steps[3] = {
+        _mm256_set1_ps(edges[0].y_step),
+        _mm256_set1_ps(edges[1].y_step),
+        _mm256_set1_ps(edges[2].y_step)
+    };
+
+    const __m256 zero = _mm256_setzero_ps();
+    const __m256i color_vec = _mm256_set1_epi32(static_cast<int>(color));
+
+    const bool positive_winding = area > 0.0f;
+
+    for (int64_t tile_y = bbox.min_y; tile_y <= bbox.max_y; tile_y += 8) {
+        const int32_t first_y = static_cast<int32_t>(tile_y);
+
+        for (int64_t tile_x = bbox.min_x; tile_x <= bbox.max_x; tile_x += 8) {
+            const int32_t first_x = static_cast<int32_t>(tile_x);
+            const int32_t remaining_x = bbox.max_x - first_x + 1;
+            const int32_t lane_count = remaining_x < 8 ? remaining_x : 8;
+            const __m256i valid_lanes = _mm256_setr_epi32(
+                lane_count > 0 ? -1 : 0, lane_count > 1 ? -1 : 0,
+                lane_count > 2 ? -1 : 0, lane_count > 3 ? -1 : 0,
+                lane_count > 4 ? -1 : 0, lane_count > 5 ? -1 : 0,
+                lane_count > 6 ? -1 : 0, lane_count > 7 ? -1 : 0
+            );
+
+            __m256 row_starts[3] = {
+                _mm256_set1_ps(edge_at(edges[0], first_x, first_y)),
+                _mm256_set1_ps(edge_at(edges[1], first_x, first_y)),
+                _mm256_set1_ps(edge_at(edges[2], first_x, first_y))
+            };
+
+            for (int32_t row = 0; row < 8 && tile_y + row <= bbox.max_y; ++row) {
+                const __m256 e0 = edge_lanes(row_starts[0], x_steps[0]);
+                const __m256 e1 = edge_lanes(row_starts[1], x_steps[1]);
+                const __m256 e2 = edge_lanes(row_starts[2], x_steps[2]);
+
+                row_starts[0] = _mm256_add_ps(row_starts[0], row_steps[0]);
+                row_starts[1] = _mm256_add_ps(row_starts[1], row_steps[1]);
+                row_starts[2] = _mm256_add_ps(row_starts[2], row_steps[2]);
+
+                const __m256i coverage = triangle_coverage_mask(e0, e1, e2, zero, valid_lanes, positive_winding);
+                if (_mm256_testz_si256(coverage, coverage)) continue;
+
+                const size_t index = static_cast<size_t>(tile_y + row) * fb->width + static_cast<size_t>(first_x);
+
+                const __m256 z = _mm256_fmadd_ps(e1, z_weight_a, _mm256_fmadd_ps(e2, z_weight_b, _mm256_mul_ps(e0, z_weight_c)));
+
+                // only load covered lanes, the others could be past the end of the buffer
+                const __m256 stored_z = _mm256_maskload_ps(&db->buffer[index], coverage);
+                const __m256i closer = _mm256_castps_si256(_mm256_cmp_ps(z, stored_z, _CMP_LT_OQ));
+                const __m256i pass = _mm256_and_si256(coverage, closer);
+
+                masked_store_row(&fb->buffer[index], pass, color_vec);
+                _mm256_maskstore_ps(&db->buffer[index], pass, z);
+            }
+        }
+    }
+}
+
 } // namespace dwrast::simd

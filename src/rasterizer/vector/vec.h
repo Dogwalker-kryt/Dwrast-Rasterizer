@@ -308,8 +308,16 @@ __always_inline float vec3f_length(const vec3f_t vec) {
     return sqrtf(vec3f_length_squared(vec));
 }
 
+static inline vec3f_t vec3f_cross(const vec3f_t a, const vec3f_t b) {
+    return VEC_INIT(vec3f_t,
+        a.y * b.z - a.z * b.y,
+        a.z * b.x - a.x * b.z,
+        a.x * b.y - a.y * b.x
+    );
+}
+
 static inline vec3f_t vec3f_normalize(const vec3f_t vec) {
-    float len = vec3f_length_squared(vec);
+    float len = vec3f_length(vec);
 
     return VEC_INIT(vec3f_t,
         vec.x / len,
